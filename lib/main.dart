@@ -1,15 +1,26 @@
+import 'package:admin_web_app_sp/services/provider/department_provider.dart';
+import 'package:admin_web_app_sp/services/provider/faculty_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'features/authentication/login_auth_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'firebase_options.dart';
+import 'package:provider/provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform, // Add this line for web initialization
   );
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => FacultyProvider()),
+        ChangeNotifierProvider(create: (_) => DepartmentsProvider()),
+      ],
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
