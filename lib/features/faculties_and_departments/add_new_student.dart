@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+
+import '../../services/provider/students_provider.dart';
 
 class AddStudentPage extends StatefulWidget {
   const AddStudentPage({super.key});
@@ -9,28 +12,131 @@ class AddStudentPage extends StatefulWidget {
 }
 
 class _AddStudentPageState extends State<AddStudentPage> {
-  final TextEditingController _dobController = TextEditingController();
   final TextEditingController _matricNoController = TextEditingController();
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _middleNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _dobController = TextEditingController();
   String selectedYear = '2023/2024';
   String selectedMode = 'UTME';
   String selectedProgram = 'Computer Science';
   String selectedLevelEnrolled = '100 Level';
   String selectedCurrentLevel = '100 Level';
+  String faculty = 'FCAS';
+  String department = 'Computer Science';
   final _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
 
   @override
   void dispose() {
-    _dobController.dispose();
     _matricNoController.dispose();
     _firstNameController.dispose();
     _lastNameController.dispose();
     _middleNameController.dispose();
     _emailController.dispose();
+    _dobController.dispose();
     super.dispose();
+  }
+
+  void _previewStudentData() {
+    if (_formKey.currentState!.validate()) {
+      showDialog(
+        context: context,
+        builder: (context) {
+          bool isSubmitting = false;
+
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              return AlertDialog(
+                title: const Text("Confirm Student Details"),
+                content: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text("Matric No: ${_matricNoController.text}"),
+                    Text("First Name: ${_firstNameController.text}"),
+                    Text("Last Name: ${_lastNameController.text}"),
+                    Text("Middle Name: ${_middleNameController.text}"),
+                    Text("Email: ${_emailController.text}"),
+                    Text("Date of Birth: ${_dobController.text}"),
+                    Text("Year Enrolled: $selectedYear"),
+                    Text("Mode of Entry: $selectedMode"),
+                    Text("Program: $selectedProgram"),
+                    Text("Level Enrolled: $selectedLevelEnrolled"),
+                    Text("Current Level: $selectedCurrentLevel"),
+                    Text("Faculty: $faculty"),
+                    Text("Department: $department"),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: isSubmitting ? null : () => Navigator.pop(context),
+                    child: const Text("Edit"),
+                  ),
+                  SizedBox(
+                    width: double.infinity,
+                    child: Column(
+                      children: [
+                        if (isSubmitting) const CircularProgressIndicator(),
+                        TextButton(
+                          onPressed: isSubmitting
+                              ? null
+                              : () async {
+                            setDialogState(() => isSubmitting = true);
+
+                            final studentsProvider =
+                            Provider.of<StudentsListProvider>(context, listen: false);
+                            bool exists = await studentsProvider
+                                .checkMatricNoExists(_matricNoController.text);
+
+                            if (exists) {
+                              setDialogState(() => isSubmitting = false);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text("Matric number already exists")),
+                              );
+                              return;
+                            }
+
+                            try {
+                              await studentsProvider.addStudent({
+                                "matricNo": _matricNoController.text,
+                                "firstName": _firstNameController.text,
+                                "lastName": _lastNameController.text,
+                                "middleName": _middleNameController.text,
+                                "email": _emailController.text,
+                                "dob": _dobController.text,
+                                "yearEnrolled": selectedYear,
+                                "modeOfEntry": selectedMode,
+                                "program": selectedProgram,
+                                "levelEnrolled": selectedLevelEnrolled,
+                                "currentLevel": selectedCurrentLevel,
+                                "faculty": faculty,
+                                "department": department,
+                                "coursesEnrolled": [],
+                              });
+
+                              Navigator.pop(context); // Close dialog
+                              Navigator.pop(context); // Go back to the previous screen
+                            } catch (e) {
+                              setDialogState(() => isSubmitting = false);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text("Error adding student: $e")),
+                              );
+                            }
+                          },
+                          child: const Text("Submit"),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    }
   }
 
   void _selectDate(BuildContext context) async {
@@ -44,52 +150,6 @@ class _AddStudentPageState extends State<AddStudentPage> {
       setState(() {
         _dobController.text = DateFormat('yyyy-MM-dd').format(picked);
       });
-    }
-  }
-
-  void _previewStudentData() {
-    if (_formKey.currentState!.validate()) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text("Confirm Student Details"),
-          contentPadding: const EdgeInsets.all(24.0),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text("Matric No: ${_matricNoController.text}"),
-                Text("First Name: ${_firstNameController.text}"),
-                Text("Last Name: ${_lastNameController.text}"),
-                Text("Date of Birth: ${_dobController.text}"),
-                Text("Year Enrolled: $selectedYear"),
-                Text("Mode of Entry: $selectedMode"),
-                Text("Program: $selectedProgram"),
-                Text("Level Enrolled: $selectedLevelEnrolled"),
-                Text("Current Level: $selectedCurrentLevel"),
-                const Text("Faculty: FCAS"),
-                const Text("Department: Computer Science"),
-                const Text("Courses Enrolled: []"),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Edit"),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                // Proceed with submission logic, ensuring coursesEnrolled is an empty list
-              },
-              child: const Text("Submit"),
-            ),
-          ],
-        ),
-      );
     }
   }
 
@@ -271,3 +331,6 @@ class _AddStudentPageState extends State<AddStudentPage> {
     );
   }
 }
+
+
+//addition of phone number to the data, expected to be collected

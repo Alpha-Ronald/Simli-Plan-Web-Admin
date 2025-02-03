@@ -1,5 +1,6 @@
 import 'package:admin_web_app_sp/services/provider/department_provider.dart';
 import 'package:admin_web_app_sp/services/provider/faculty_provider.dart';
+import 'package:admin_web_app_sp/services/provider/students_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'features/authentication/login_auth_screen.dart';
@@ -17,6 +18,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => FacultyProvider()),
         ChangeNotifierProvider(create: (_) => DepartmentsProvider()),
+        ChangeNotifierProvider(create: (_) => StudentsListProvider()),
       ],
       child: MyApp(),
     ),

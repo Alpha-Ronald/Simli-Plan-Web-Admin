@@ -10,7 +10,7 @@ class StudentsListProvider with ChangeNotifier {
   Future<void> fetchStudents(String departmentName) async {
     try {
       QuerySnapshot snapshot = await _firestore
-          .collection('students')
+          .collection('Students')
           .where('department', isEqualTo: departmentName)
           .get();
       _students = snapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
@@ -22,11 +22,8 @@ class StudentsListProvider with ChangeNotifier {
 
   Future<bool> checkMatricNoExists(String matricNo) async {
     try {
-      QuerySnapshot snapshot = await _firestore
-          .collection('students')
-          .where('matricNo', isEqualTo: matricNo)
-          .get();
-      return snapshot.docs.isNotEmpty;
+      DocumentSnapshot doc = await _firestore.collection('Students').doc(matricNo).get();
+      return doc.exists;
     } catch (e) {
       debugPrint("Error checking matric number: $e");
       return false;
@@ -39,7 +36,7 @@ class StudentsListProvider with ChangeNotifier {
       if (exists) {
         throw Exception("Matric number already exists");
       }
-      await _firestore.collection('students').add(studentData);
+      await _firestore.collection('Students').doc(studentData['matricNo']).set(studentData);
       _students.add(studentData);
       notifyListeners();
     } catch (e) {
