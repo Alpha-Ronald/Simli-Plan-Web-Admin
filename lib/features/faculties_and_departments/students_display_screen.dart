@@ -96,7 +96,7 @@ class _StudentsPageState extends State<StudentsPage> {
                 const SizedBox(width: 10),
                 DropdownButton<String>(
                   value: selectedProgram,
-                  items: ['All', 'Computer Science', 'Software Engineering', 'Information Systems']
+                  items: ['All', 'Computer Science', 'Software Engineering', 'CyberSecurity']
                       .map((program) => DropdownMenuItem(
                     value: program,
                     child: Text(program),
