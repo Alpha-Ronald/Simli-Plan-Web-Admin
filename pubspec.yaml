@@ -38,6 +38,7 @@ dependencies:
   firebase_analytics:
   firebase_crashlytics:
   provider:
+  intl:
 
 
 

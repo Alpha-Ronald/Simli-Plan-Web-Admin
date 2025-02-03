@@ -154,3 +154,6 @@ class _LoginAuthPageState extends State<LoginAuthPage> {
     );
   }
 }
+
+// row, column, containers, stack
+//Text fields, buttons,

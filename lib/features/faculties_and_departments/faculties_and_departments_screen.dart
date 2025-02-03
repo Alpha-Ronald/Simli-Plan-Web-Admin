@@ -82,7 +82,15 @@ class DepartmentsList extends StatelessWidget {
                 trailing: IconButton(
                   icon: const Icon(Icons.arrow_forward),
                   onPressed: () {
-                    // Navigate to department details screen
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DepartmentDetailsPage(
+                          departmentId: department['id']!,
+                          departmentName: department['department'] ?? 'Unknown Department',
+                        ),
+                      ),
+                    );
                   },
                 ),
               ),
