@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import '../../services/provider/department_provider.dart';
 import "package:admin_web_app_sp/features/faculties_and_departments/lecturers_display_screen.dart";
 
+import 'courses_display_screen.dart';
+
 
 class DepartmentDetailsPage extends StatelessWidget {
   final String departmentId;
@@ -83,7 +85,9 @@ class DepartmentDetailsPage extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const LecturersPage(),
+                              builder: (context) => LecturersPage( departmentId: departmentId,
+                                departmentName: departmentName,
+                                programs: programs,),
                             ),
                           );
                         },
@@ -96,7 +100,9 @@ class DepartmentDetailsPage extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const StudentsPage(),
+                              builder: (context) => StudentsPage( departmentId: departmentId,
+                                departmentName: departmentName,
+                                programs: programs,),
                             ),
                           );
                         },
@@ -108,7 +114,11 @@ class DepartmentDetailsPage extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const StudentsPage(),
+                              builder: (context) => CoursesPage(
+                                departmentId: departmentId,
+                                departmentName: departmentName,
+                                programs: programs,
+                              ),
                             ),
                           );
                         },

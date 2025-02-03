@@ -5,7 +5,16 @@ import 'package:provider/provider.dart';
 import '../../services/provider/students_provider.dart';
 
 class AddStudentPage extends StatefulWidget {
-  const AddStudentPage({super.key});
+  final String departmentId;
+  final String departmentName;
+  final List<String> programs;
+
+  const AddStudentPage({
+    super.key,
+    required this.departmentId,
+    required this.departmentName,
+    required this.programs,
+  });
 
   @override
   State<AddStudentPage> createState() => _AddStudentPageState();
@@ -20,7 +29,7 @@ class _AddStudentPageState extends State<AddStudentPage> {
   final TextEditingController _dobController = TextEditingController();
   String selectedYear = '2023/2024';
   String selectedMode = 'UTME';
-  String selectedProgram = 'Computer Science';
+  String selectedProgram = '';
   String selectedLevelEnrolled = '100 Level';
   String selectedCurrentLevel = '100 Level';
   String faculty = 'FCAS';
@@ -197,13 +206,10 @@ class _AddStudentPageState extends State<AddStudentPage> {
                           (value) => setState(() => selectedMode = value!)),
                   _buildDropdown(
                       "Program",
-                      [
-                        "Computer Science",
-                        "Software Engineering",
-                        "CyberSecurity"
-                      ],
+                      ['', ...widget.programs],
                       selectedProgram,
-                          (value) => setState(() => selectedProgram = value!)),
+                          (value) => setState(() => selectedProgram = value!)
+                  ),
                 ]),
                 _buildInputRow([
                   _buildDropdown(
@@ -220,7 +226,7 @@ class _AddStudentPageState extends State<AddStudentPage> {
                 _buildContainerTextField("Email", _emailController),
                 const SizedBox(height: 16),
                 _buildGreyContainer("Faculty: FCAS"),
-                _buildGreyContainer("Department: Computer Science"),
+                _buildGreyContainer("Department: ${widget.departmentName}"),
                 const SizedBox(height: 24),
                 Center(
                   child: SizedBox(

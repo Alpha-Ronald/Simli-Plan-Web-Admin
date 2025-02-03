@@ -3,7 +3,16 @@ import 'package:flutter/material.dart';
 import 'add_new_student.dart';
 
 class StudentsPage extends StatefulWidget {
-  const StudentsPage({super.key});
+  final String departmentId;
+  final String departmentName;
+  final List<String> programs;
+
+  const StudentsPage({
+    super.key,
+    required this.departmentId,
+    required this.departmentName,
+    required this.programs,
+  });
 
   @override
   State<StudentsPage> createState() => _StudentsPageState();
@@ -12,7 +21,7 @@ class StudentsPage extends StatefulWidget {
 class _StudentsPageState extends State<StudentsPage> {
   List<Map<String, String>> students = [
     {'name': 'John Doe', 'level': '100', 'email': 'john@example.com', 'phone': '+123456789', 'year_of_entry': '2022', 'mode_of_entry': 'UTME', 'program': 'Computer Science'},
-    {'name': 'Jane Smith', 'level': '100', 'email': 'jane@example.com', 'phone': '+987654321', 'year_of_entry': '2022', 'mode_of_entry': 'Direct Entry', 'program': 'Software Engineering'},
+    {'name': 'Jane Smith', 'level': '400', 'email': 'jane@example.com', 'phone': '+987654321', 'year_of_entry': '2022', 'mode_of_entry': 'Direct Entry', 'program': 'Software Engineering'},
     {'name': 'Alice Brown', 'level': '200', 'email': 'alice@example.com', 'phone': '+1122334455', 'year_of_entry': '2021', 'mode_of_entry': 'UTME', 'program': 'Information Systems'},
     {'name': 'Bob White', 'level': '300', 'email': 'bob@example.com', 'phone': '+5566778899', 'year_of_entry': '2020', 'mode_of_entry': 'UTME', 'program': 'Computer Science'},
   ];
@@ -48,7 +57,9 @@ class _StudentsPageState extends State<StudentsPage> {
               Navigator.pop(context);
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const AddStudentPage()),
+                MaterialPageRoute(builder: (context) => AddStudentPage( departmentId: widget.departmentId,
+                  departmentName: widget.departmentName,
+                  programs: widget.programs,)),
               );
             },
             child: const Text("Yes"),
@@ -74,7 +85,7 @@ class _StudentsPageState extends State<StudentsPage> {
     int globalIndex = 1;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Students List')),
+      appBar: AppBar(title:  Text('Students List: ${widget.departmentName} Department')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -96,7 +107,7 @@ class _StudentsPageState extends State<StudentsPage> {
                 const SizedBox(width: 10),
                 DropdownButton<String>(
                   value: selectedProgram,
-                  items: ['All', 'Computer Science', 'Software Engineering', 'CyberSecurity']
+                  items: ['All', ...widget.programs]
                       .map((program) => DropdownMenuItem(
                     value: program,
                     child: Text(program),
@@ -109,43 +120,46 @@ class _StudentsPageState extends State<StudentsPage> {
             const SizedBox(height: 10),
             Expanded(
               child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SizedBox(
-                  width: MediaQuery.of(context).size.width * 1.2,
-                  child: DataTable(
-                    columns: const [
-                      DataColumn(label: Text('No.')),
-                      DataColumn(label: Text('Level No.')),
-                      DataColumn(label: Text('Name')),
-                      DataColumn(label: Text('Email')),
-                      DataColumn(label: Text('Phone')),
-                      DataColumn(label: Text('Year of Entry')),
-                      DataColumn(label: Text('Mode of Entry')),
-                      DataColumn(label: Text('Program')),
-                    ],
-                    rows: groupedByLevel.entries.expand((entry) {
-                      List<DataRow> rows = [];
-                      rows.add(
-                        DataRow(cells: [
-                          DataCell(Text('${entry.key} level', style: const TextStyle(fontWeight: FontWeight.bold))),
-                          ...List.filled(7, const DataCell(Text(''))),
-                        ]),
-                      );
-                      int levelIndex = 1;
-                      rows.addAll(entry.value.map((student) {
-                        return DataRow(cells: [
-                          DataCell(Text((globalIndex++).toString())),
-                          DataCell(Text((levelIndex++).toString())),
-                          DataCell(Text(student['name']!)),
-                          DataCell(Text(student['email']!)),
-                          DataCell(Text(student['phone']!)),
-                          DataCell(Text(student['year_of_entry'] ?? 'N/A')),
-                          DataCell(Text(student['mode_of_entry'] ?? 'N/A')),
-                          DataCell(Text(student['program'] ?? 'N/A')),
-                        ]);
-                      }));
-                      return rows;
-                    }).toList(),
+                scrollDirection: Axis.vertical,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: MediaQuery.of(context).size.width * 1.2,
+                    child: DataTable(
+                      columns: const [
+                        DataColumn(label: Text('No.')),
+                        DataColumn(label: Text('Level No.')),
+                        DataColumn(label: Text('Name')),
+                        DataColumn(label: Text('Email')),
+                        DataColumn(label: Text('Phone')),
+                        DataColumn(label: Text('Year of Entry')),
+                        DataColumn(label: Text('Mode of Entry')),
+                        DataColumn(label: Text('Program')),
+                      ],
+                      rows: groupedByLevel.entries.expand((entry) {
+                        List<DataRow> rows = [];
+                        rows.add(
+                          DataRow(cells: [
+                            DataCell(Text('${entry.key} level', style: const TextStyle(fontWeight: FontWeight.bold))),
+                            ...List.filled(7, const DataCell(Text(''))),
+                          ]),
+                        );
+                        int levelIndex = 1;
+                        rows.addAll(entry.value.map((student) {
+                          return DataRow(cells: [
+                            DataCell(Text((globalIndex++).toString())),
+                            DataCell(Text((levelIndex++).toString())),
+                            DataCell(Text(student['name']!)),
+                            DataCell(Text(student['email']!)),
+                            DataCell(Text(student['phone']!)),
+                            DataCell(Text(student['year_of_entry'] ?? 'N/A')),
+                            DataCell(Text(student['mode_of_entry'] ?? 'N/A')),
+                            DataCell(Text(student['program'] ?? 'N/A')),
+                          ]);
+                        }));
+                        return rows;
+                      }).toList(),
+                    ),
                   ),
                 ),
               ),
