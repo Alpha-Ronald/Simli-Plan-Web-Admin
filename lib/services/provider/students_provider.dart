@@ -9,16 +9,27 @@ class StudentsListProvider with ChangeNotifier {
 
   Future<void> fetchStudents(String departmentName) async {
     try {
+      debugPrint("Fetching students for department: $departmentName");
+
       QuerySnapshot snapshot = await _firestore
           .collection('Students')
           .where('department', isEqualTo: departmentName)
           .get();
+
+      debugPrint("Firestore returned ${snapshot.docs.length} documents");
+
+      for (var doc in snapshot.docs) {
+        debugPrint("Student Data: ${doc.data()}");
+      }
+
       _students = snapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
+
       notifyListeners();
     } catch (e) {
       debugPrint("Error fetching students: $e");
     }
   }
+
 
   Future<bool> checkMatricNoExists(String matricNo) async {
     try {

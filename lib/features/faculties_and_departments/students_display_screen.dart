@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../services/provider/students_provider.dart';
 import 'add_new_student.dart';
 
 class StudentsPage extends StatefulWidget {
@@ -19,15 +21,29 @@ class StudentsPage extends StatefulWidget {
 }
 
 class _StudentsPageState extends State<StudentsPage> {
-  List<Map<String, String>> students = [
-    {'name': 'John Doe', 'level': '100', 'email': 'john@example.com', 'phone': '+123456789', 'year_of_entry': '2022', 'mode_of_entry': 'UTME', 'program': 'Computer Science'},
-    {'name': 'Jane Smith', 'level': '400', 'email': 'jane@example.com', 'phone': '+987654321', 'year_of_entry': '2022', 'mode_of_entry': 'Direct Entry', 'program': 'Software Engineering'},
-    {'name': 'Alice Brown', 'level': '200', 'email': 'alice@example.com', 'phone': '+1122334455', 'year_of_entry': '2021', 'mode_of_entry': 'UTME', 'program': 'Information Systems'},
-    {'name': 'Bob White', 'level': '300', 'email': 'bob@example.com', 'phone': '+5566778899', 'year_of_entry': '2020', 'mode_of_entry': 'UTME', 'program': 'Computer Science'},
-  ];
+
+
+  // List<Map<String, String>> students = [
+  //   {'name': 'John Doe', 'level': '100', 'email': 'john@example.com', 'phone': '+123456789', 'year_of_entry': '2022', 'mode_of_entry': 'UTME', 'program': 'Computer Science'},
+  //   {'name': 'Jane Smith', 'level': '400', 'email': 'jane@example.com', 'phone': '+987654321', 'year_of_entry': '2022', 'mode_of_entry': 'Direct Entry', 'program': 'Software Engineering'},
+  //   {'name': 'Alice Brown', 'level': '200', 'email': 'alice@example.com', 'phone': '+1122334455', 'year_of_entry': '2021', 'mode_of_entry': 'UTME', 'program': 'Information Systems'},
+  //   {'name': 'Bob White', 'level': '300', 'email': 'bob@example.com', 'phone': '+5566778899', 'year_of_entry': '2020', 'mode_of_entry': 'UTME', 'program': 'Computer Science'},
+  // ];
 
   String searchQuery = '';
   String selectedProgram = 'All';
+
+  ///////
+  @override
+  void initState() {
+    super.initState();
+    // Fetch students when the page loads
+    Future.microtask(() {
+      Provider.of<StudentsListProvider>(context, listen: false)
+          .fetchStudents(widget.departmentName);
+    });
+  }
+
 
   void _filterStudents(String query) {
     setState(() {
@@ -71,16 +87,47 @@ class _StudentsPageState extends State<StudentsPage> {
 
   @override
   Widget build(BuildContext context) {
-    List<Map<String, String>> filteredStudents = students.where((student) {
-      bool matchesSearch = student['name']!.toLowerCase().contains(searchQuery);
-      bool matchesProgram = selectedProgram == 'All' || student['program'] == selectedProgram;
+    final studentsProvider = Provider.of<StudentsListProvider>(context);
+    final students = studentsProvider.students;
+
+    debugPrint("Number of students in provider: ${studentsProvider.students.length}");
+
+    // List<Map<String, String>> filteredStudents = students.where((student) {
+    //   bool matchesSearch = student['name']!.toLowerCase().contains(searchQuery);
+    //   bool matchesProgram = selectedProgram == 'All' || student['program'] == selectedProgram;
+    //   return matchesSearch && matchesProgram;
+    // }).toList();
+
+    List<Map<String, dynamic>> filteredStudents = students.where((student) {
+      bool matchesSearch = student['lastName']
+          ?.toLowerCase()
+          .contains(searchQuery) ==
+          true;
+      bool matchesProgram =
+          selectedProgram == 'All' || student['program'] == selectedProgram;
       return matchesSearch && matchesProgram;
     }).toList();
 
-    Map<String, List<Map<String, String>>> groupedByLevel = {};
+    debugPrint("Filtered students count: ${filteredStudents.length}");
+    ///////
+
+    filteredStudents.sort((a, b) =>
+        (a['level']?.toString() ?? '').compareTo(b['level']?.toString() ?? ''));
+
+    Map<String, List<Map<String, dynamic>>> groupedByLevel = {};
     for (var student in filteredStudents) {
-      groupedByLevel.putIfAbsent(student['level']!, () => []).add(student);
+      String level = student['currentLevel']?.toString() ?? 'N/A';
+      groupedByLevel.putIfAbsent(level, () => []).add(student);
     }
+
+
+
+    // filteredStudents.sort((a, b) => a['level']!.compareTo(b['level']!));
+    //
+    // Map<String, List<Map<String, String>>> groupedByLevel = {};
+    // for (var student in filteredStudents) {
+    //   groupedByLevel.putIfAbsent(student['level']!, () => []).add(student);
+    // }
 
     int globalIndex = 1;
 
@@ -98,7 +145,7 @@ class _StudentsPageState extends State<StudentsPage> {
                   child: TextField(
                     onChanged: _filterStudents,
                     decoration: const InputDecoration(
-                      hintText: 'Search by name...',
+                      hintText: 'Search by lastname...',
                       prefixIcon: Icon(Icons.search),
                       border: OutlineInputBorder(),
                     ),
@@ -124,37 +171,77 @@ class _StudentsPageState extends State<StudentsPage> {
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: SizedBox(
-                    width: MediaQuery.of(context).size.width * 1.2,
+                    width: MediaQuery.of(context).size.width * 1.8,
                     child: DataTable(
                       columns: const [
                         DataColumn(label: Text('No.')),
                         DataColumn(label: Text('Level No.')),
-                        DataColumn(label: Text('Name')),
+                        DataColumn(label: Text('Matric No.')),
+                        DataColumn(label: Text('Lastname')),
+                        DataColumn(label: Text('Other Names')),
+                        DataColumn(label: Text('Program')),
                         DataColumn(label: Text('Email')),
                         DataColumn(label: Text('Phone')),
-                        DataColumn(label: Text('Year of Entry')),
+                        DataColumn(label: Text('Current Level')),
+                        DataColumn(label: Text('Courses Enrolled')),
                         DataColumn(label: Text('Mode of Entry')),
-                        DataColumn(label: Text('Program')),
+                        DataColumn(label: Text('Enrolled Level & Year')),
+                        DataColumn(label: Text('DOB')),
+                        DataColumn(label: Text('Options')),
                       ],
                       rows: groupedByLevel.entries.expand((entry) {
                         List<DataRow> rows = [];
-                        rows.add(
-                          DataRow(cells: [
-                            DataCell(Text('${entry.key} level', style: const TextStyle(fontWeight: FontWeight.bold))),
-                            ...List.filled(7, const DataCell(Text(''))),
-                          ]),
-                        );
+
+                        rows.add(DataRow(cells: [
+                          DataCell(Text('${entry.key} level',
+                              style: const TextStyle(fontWeight: FontWeight.bold))),
+                          ...List.generate(13, (index) => const DataCell(Text(''))), // Ensure 14 cells in total
+                        ]));
+
                         int levelIndex = 1;
+
                         rows.addAll(entry.value.map((student) {
                           return DataRow(cells: [
                             DataCell(Text((globalIndex++).toString())),
                             DataCell(Text((levelIndex++).toString())),
-                            DataCell(Text(student['name']!)),
-                            DataCell(Text(student['email']!)),
-                            DataCell(Text(student['phone']!)),
-                            DataCell(Text(student['year_of_entry'] ?? 'N/A')),
-                            DataCell(Text(student['mode_of_entry'] ?? 'N/A')),
+                            DataCell(Text(student['matricNo'] ?? 'N/A')),
+                            DataCell(Text(student['lastName'] ?? 'N/A')),
+                            DataCell(
+                                Text('${student['firstName'] ?? 'N/A'} ${student['middleName'] ?? ''}')
+                            ),
                             DataCell(Text(student['program'] ?? 'N/A')),
+                            DataCell(Text(student['email'] ?? 'N/A')),
+                            DataCell(Text(student['phone'] ?? 'N/A')),
+                            DataCell(Text(student['currentLevel'] ?? 'N/A')),
+                            DataCell(GestureDetector(
+                              onTap: () {
+                                List<dynamic> courses =
+                                (student['coursesEnrolled'] as List<dynamic>? ?? []);
+                                _showCoursesDialog(context, courses);
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue,
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                                child: Text(
+                                  '${(student['coursesEnrolled'] as List<dynamic>?)?.length ?? 0}',
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              ),
+                            )),
+                            DataCell(Text(student['modeOfEntry'] ?? 'N/A')),
+                            DataCell(Text(
+                                '${student['levelEnrolled']} (${student['yearEnrolled']})')),
+                            DataCell(Text(student['dob'] ?? 'N/A')),
+                            DataCell(PopupMenuButton<String>(
+                              itemBuilder: (context) => [
+                                const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                                const PopupMenuItem(value: 'copy', child: Text('Copy')),
+                                const PopupMenuItem(value: 'email', child: Text('Email')),
+                              ],
+                            )),
                           ]);
                         }));
                         return rows;
@@ -164,12 +251,40 @@ class _StudentsPageState extends State<StudentsPage> {
                 ),
               ),
             ),
+            // SizedBox(height: 25,)
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _navigateToAddStudent,
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  void _showCoursesDialog(BuildContext context, List<dynamic> courses) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Courses Enrolled"),
+        content: SizedBox(
+          height: 200,
+          width: 300,
+          child: ListView.builder(
+            itemCount: courses.length,
+            itemBuilder: (context, index) {
+              return ListTile(
+                title: Text(courses[index]),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Close"),
+          ),
+        ],
       ),
     );
   }

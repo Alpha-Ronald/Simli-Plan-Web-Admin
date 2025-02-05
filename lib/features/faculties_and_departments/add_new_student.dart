@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -176,12 +177,12 @@ class _AddStudentPageState extends State<AddStudentPage> {
               children: [
                 _buildInputRow([
                   _buildContainerTextField("Matric No.", _matricNoController),
-                  _buildContainerTextField("First Name", _firstNameController),
+                  _buildContainerTextField("First Name (All names must be in uppercase)", _firstNameController, isUppercase: true),
                 ]),
                 _buildInputRow([
-                  _buildContainerTextField("Last Name", _lastNameController),
+                  _buildContainerTextField("Last Name", _lastNameController,isUppercase: true),
                   _buildContainerTextField(
-                      "Middle Name", _middleNameController),
+                      "Middle Name", _middleNameController, isUppercase: true),
                 ]),
                 _buildInputRow([
                   _buildDatePicker("Date of Birth"),
@@ -289,7 +290,10 @@ class _AddStudentPageState extends State<AddStudentPage> {
   }
 
   Widget _buildContainerTextField(
-      String label, TextEditingController controller) {
+      String label,
+      TextEditingController controller, {
+        bool isUppercase = false,
+      }) {
     return Container(
       padding: const EdgeInsets.all(12),
       margin: const EdgeInsets.only(bottom: 16),
@@ -311,7 +315,13 @@ class _AddStudentPageState extends State<AddStudentPage> {
           border: InputBorder.none,
         ),
         validator: (value) =>
-            value == null || value.isEmpty ? "$label is required" : null,
+        value == null || value.isEmpty ? "$label is required" : null,
+        textCapitalization: isUppercase
+            ? TextCapitalization.characters
+            : TextCapitalization.none,
+        inputFormatters: isUppercase
+            ? [FilteringTextInputFormatter.allow(RegExp(r'[A-Z\s]'))]
+            : [],
       ),
     );
   }

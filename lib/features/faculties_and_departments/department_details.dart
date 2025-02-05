@@ -101,7 +101,7 @@ class DepartmentDetailsPage extends StatelessWidget {
                             context,
                             MaterialPageRoute(
                               builder: (context) => StudentsPage( departmentId: departmentId,
-                                departmentName: departmentName,
+                                departmentName: departmentName ?? '',
                                 programs: programs,),
                             ),
                           );
