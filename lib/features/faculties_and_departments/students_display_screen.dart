@@ -33,6 +33,7 @@ class _StudentsPageState extends State<StudentsPage> {
   String searchQuery = '';
   String selectedProgram = 'All';
 
+  final ScrollController _horizontalController = ScrollController();
   ///////
   @override
   void initState() {
@@ -83,6 +84,12 @@ class _StudentsPageState extends State<StudentsPage> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _horizontalController.dispose();
+    super.dispose();
   }
 
   @override
@@ -168,84 +175,94 @@ class _StudentsPageState extends State<StudentsPage> {
             Expanded(
               child: SingleChildScrollView(
                 scrollDirection: Axis.vertical,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: SizedBox(
-                    width: MediaQuery.of(context).size.width * 1.8,
-                    child: DataTable(
-                      columns: const [
-                        DataColumn(label: Text('No.')),
-                        DataColumn(label: Text('Level No.')),
-                        DataColumn(label: Text('Matric No.')),
-                        DataColumn(label: Text('Lastname')),
-                        DataColumn(label: Text('Other Names')),
-                        DataColumn(label: Text('Program')),
-                        DataColumn(label: Text('Email')),
-                        DataColumn(label: Text('Phone')),
-                        DataColumn(label: Text('Current Level')),
-                        DataColumn(label: Text('Courses Enrolled')),
-                        DataColumn(label: Text('Mode of Entry')),
-                        DataColumn(label: Text('Enrolled Level & Year')),
-                        DataColumn(label: Text('DOB')),
-                        DataColumn(label: Text('Options')),
-                      ],
-                      rows: groupedByLevel.entries.expand((entry) {
-                        List<DataRow> rows = [];
+                child: Scrollbar(
+                  controller: _horizontalController,
+                  child: SingleChildScrollView(
+                    controller: _horizontalController,
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(
+                      width: MediaQuery.of(context).size.width * 1.8,
+                      child: DataTable(
+                        columns: const [
+                          DataColumn(label: Text('No.')),
+                          DataColumn(label: Text('Level No.')),
+                          DataColumn(label: Text('Matric No.')),
+                          DataColumn(label: Text('Lastname')),
+                          DataColumn(label: Text('Other Names')),
+                          DataColumn(label: Text('Program')),
+                          DataColumn(label: Text('Email')),
+                          DataColumn(label: Text('Phone')),
+                          DataColumn(label: Text('Current Level')),
+                          DataColumn(label: Text('Courses Enrolled')),
+                          DataColumn(label: Text('Mode of Entry')),
+                          DataColumn(label: Text('Enrolled Level & Year')),
+                          DataColumn(label: Text('DOB')),
+                          DataColumn(label: Text('Options')),
+                        ],
+                        rows: groupedByLevel.entries.expand((entry) {
+                          List<DataRow> rows = [];
 
-                        rows.add(DataRow(cells: [
-                          DataCell(Text('${entry.key} level',
-                              style: const TextStyle(fontWeight: FontWeight.bold))),
-                          ...List.generate(13, (index) => const DataCell(Text(''))), // Ensure 14 cells in total
-                        ]));
+                          rows.add(DataRow(
+                              color: WidgetStateProperty.all(Colors.blueGrey.shade100), cells: [
+                            DataCell(Text(entry.key, //level
+                                style: const TextStyle(fontWeight: FontWeight.bold))),
+                            ...List.generate(13, (index) => const DataCell(Text(''))), // Ensure 14 cells in total
+                          ]));
 
-                        int levelIndex = 1;
+                          int levelIndex = 1;
 
-                        rows.addAll(entry.value.map((student) {
-                          return DataRow(cells: [
-                            DataCell(Text((globalIndex++).toString())),
-                            DataCell(Text((levelIndex++).toString())),
-                            DataCell(Text(student['matricNo'] ?? 'N/A')),
-                            DataCell(Text(student['lastName'] ?? 'N/A')),
-                            DataCell(
-                                Text('${student['firstName'] ?? 'N/A'} ${student['middleName'] ?? ''}')
-                            ),
-                            DataCell(Text(student['program'] ?? 'N/A')),
-                            DataCell(Text(student['email'] ?? 'N/A')),
-                            DataCell(Text(student['phone'] ?? 'N/A')),
-                            DataCell(Text(student['currentLevel'] ?? 'N/A')),
-                            DataCell(GestureDetector(
-                              onTap: () {
-                                List<dynamic> courses =
-                                (student['coursesEnrolled'] as List<dynamic>? ?? []);
-                                _showCoursesDialog(context, courses);
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue,
-                                  borderRadius: BorderRadius.circular(5),
-                                ),
-                                child: Text(
-                                  '${(student['coursesEnrolled'] as List<dynamic>?)?.length ?? 0}',
-                                  style: const TextStyle(color: Colors.white),
-                                ),
+                          rows.addAll(entry.value.asMap().entries.map((entry) {
+                            final student = entry.value;
+                            final rowIndex = entry.key;
+                            final rowColor = rowIndex.isEven ? Colors.white : Colors.purple.shade50;
+                            return DataRow(
+                                color: WidgetStateProperty.all(rowColor),
+                                cells: [
+                              DataCell(Text((globalIndex++).toString())),
+                              DataCell(Text((levelIndex++).toString())),
+                              DataCell(Text(student['matricNo'] ?? 'N/A')),
+                              DataCell(Text(student['lastName'] ?? 'N/A')),
+                              DataCell(
+                                  Text('${student['firstName'] ?? 'N/A'} ${student['middleName'] ?? ''}')
                               ),
-                            )),
-                            DataCell(Text(student['modeOfEntry'] ?? 'N/A')),
-                            DataCell(Text(
-                                '${student['levelEnrolled']} (${student['yearEnrolled']})')),
-                            DataCell(Text(student['dob'] ?? 'N/A')),
-                            DataCell(PopupMenuButton<String>(
-                              itemBuilder: (context) => [
-                                const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                                const PopupMenuItem(value: 'copy', child: Text('Copy')),
-                                const PopupMenuItem(value: 'email', child: Text('Email')),
-                              ],
-                            )),
-                          ]);
-                        }));
-                        return rows;
-                      }).toList(),
+                              DataCell(Text(student['program'] ?? 'N/A')),
+                              DataCell(Text(student['email'] ?? 'N/A')),
+                              DataCell(Text(student['phone'] ?? 'N/A')),
+                              DataCell(Text(student['currentLevel'] ?? 'N/A')),
+                              DataCell(GestureDetector(
+                                onTap: () {
+                                  List<dynamic> courses =
+                                  (student['coursesEnrolled'] as List<dynamic>? ?? []);
+                                  _showCoursesDialog(context, courses);
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue,
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                  child: Text(
+                                    '${(student['coursesEnrolled'] as List<dynamic>?)?.length ?? 0}',
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              )),
+                              DataCell(Text(student['modeOfEntry'] ?? 'N/A')),
+                              DataCell(Text(
+                                  '${student['levelEnrolled']} (${student['yearEnrolled']})')),
+                              DataCell(Text(student['dob'] ?? 'N/A')),
+                              DataCell(PopupMenuButton<String>(
+                                itemBuilder: (context) => [
+                                  const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                                  const PopupMenuItem(value: 'copy', child: Text('Copy')),
+                                  const PopupMenuItem(value: 'email', child: Text('Email')),
+                                ],
+                              )),
+                            ]);
+                          }));
+                          return rows;
+                        }).toList(),
+                      ),
                     ),
                   ),
                 ),
