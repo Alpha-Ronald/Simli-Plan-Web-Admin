@@ -26,7 +26,7 @@ class _AddCoursePageState extends State<AddCoursePage> {
   String _selectedStatus = 'Required';
   String _selectedLevel = '100 Level';
   String _selectedSemester = 'Alpha';
-  String? _selectedProgram;
+  List<Map<String, String>> _selectedPrograms = [];
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
 
@@ -51,15 +51,15 @@ class _AddCoursePageState extends State<AddCoursePage> {
                   _buildContainerTextField("Course Code", _courseCodeController, inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[A-Z0-9-]'))]),
                   _buildContainerTextField("Course Title", _courseTitleController),
                 ]),
-                _buildInputRow([
-                  _buildDropdown("Units", units, _selectedUnits, (value) => setState(() => _selectedUnits = value!)),
-                  _buildDropdown("Status", statusOptions, _selectedStatus, (value) => setState(() => _selectedStatus = value!)),
-                ]),
+               // _buildInputRow([
+                //   _buildDropdown("Units", units, _selectedUnits, (value) => setState(() => _selectedUnits = value!)),
+                //   _buildDropdown("Status", statusOptions, _selectedStatus, (value) => setState(() => _selectedStatus = value!)),
+                // ]),
                 _buildInputRow([
                   _buildDropdown("Level", levels, _selectedLevel, (value) => setState(() => _selectedLevel = value!)),
                   _buildDropdown("Semester", semesters, _selectedSemester, (value) => setState(() => _selectedSemester = value!)),
                 ]),
-                _buildDropdown("Program", ['', ...widget.programs], _selectedProgram, (value) => setState(() => _selectedProgram = value)),
+                _buildMultiSelectPrograms(), // Updated multi-select program selection
                 const SizedBox(height: 16),
                 _buildGreyContainer("Faculty: FCAS"),
                 _buildGreyContainer("Department: ${widget.departmentName}"),
@@ -75,15 +75,87 @@ class _AddCoursePageState extends State<AddCoursePage> {
                   ),
                 ),
               ],
-            ),
+
           ),
         ),
+      ),
+    ));
+  }
+
+  /// Multi-select for programs using checkboxes
+  Widget _buildMultiSelectPrograms() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(border: Border.all(color: Colors.grey), borderRadius: BorderRadius.circular(8)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Select Programs & Details", style: TextStyle(fontWeight: FontWeight.bold)),
+          ...widget.programs.map((program) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CheckboxListTile(
+                  title: Text(program),
+                  value: _selectedPrograms.any((p) => p['programName'] == program),
+                  onChanged: (bool? value) {
+                    setState(() {
+                      if (value == true) {
+                        _selectedPrograms.add({
+                          "programName": program,
+                          "status": "Required",
+                          "units": "1"
+                        });
+                      } else {
+                        _selectedPrograms.removeWhere((p) => p['programName'] == program);
+                      }
+                    });
+                  },
+                ),
+                if (_selectedPrograms.any((p) => p['programName'] == program))
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Column(
+                      children: [
+                        _buildDropdown(
+                          "Status for $program",
+                          statusOptions,
+                          _selectedPrograms.firstWhere((p) => p['programName'] == program)['status'],
+                              (value) {
+                            setState(() {
+                              _selectedPrograms.firstWhere((p) => p['programName'] == program)['status'] = value!;
+                            });
+                          },
+                        ),
+                        _buildDropdown(
+                          "Units for $program",
+                          units,
+                          _selectedPrograms.firstWhere((p) => p['programName'] == program)['units'],
+                              (value) {
+                            setState(() {
+                              _selectedPrograms.firstWhere((p) => p['programName'] == program)['units'] = value!;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            );
+          }).toList(),
+        ],
       ),
     );
   }
 
+
   void _previewCourseData() {
     if (_formKey.currentState!.validate()) {
+      if (_selectedPrograms.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please select at least one program")));
+        return;
+      }
+
       showDialog(
         context: context,
         builder: (context) {
@@ -97,20 +169,15 @@ class _AddCoursePageState extends State<AddCoursePage> {
                   children: [
                     Text("Course Code: ${_courseCodeController.text}"),
                     Text("Course Title: ${_courseTitleController.text}"),
-                    Text("Units: $_selectedUnits"),
-                    Text("Status: $_selectedStatus"),
                     Text("Level: $_selectedLevel"),
                     Text("Semester: $_selectedSemester"),
-                    Text("Program: $_selectedProgram"),
+                    Text("Programs: ${_selectedPrograms.map((p) => '${p['programName']} (${p['status']}, ${p['units']} units)').join(', ')}"),
                     Text("Faculty: FCAS"),
                     Text("Department: ${widget.departmentName}"),
                   ],
                 ),
                 actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text("Edit"),
-                  ),
+                  TextButton(onPressed: () => Navigator.pop(context), child: const Text("Edit")),
                   _isLoading
                       ? const CircularProgressIndicator()
                       : TextButton(
@@ -133,22 +200,23 @@ class _AddCoursePageState extends State<AddCoursePage> {
     }
   }
 
+
   void _submitCourse(VoidCallback onSuccess) {
     final String courseCode = _courseCodeController.text.isNotEmpty ? _courseCodeController.text : "N/A";
+
     final courseData = {
       "courseCode": courseCode,
       "courseTitle": _courseTitleController.text.isNotEmpty ? _courseTitleController.text : "N/A",
       "department": widget.departmentName,
-      "difficultyRating": {},
       "faculty": "FCAS",
-      "lecturersAssigned": "N/A",
       "level": _selectedLevel,
-      "program": _selectedProgram ?? "N/A",
-      "schedule": {},
       "semester": _selectedSemester,
-      "status": _selectedStatus,
+      "programs": _selectedPrograms, // Now stores objects with programName, status, and units
+      "lecturersAssigned": "N/A",
+      "schedule": {},
       "students": [],
-      "units": _selectedUnits,
+      "difficultyRating": {},
+      "linkedCourses": [],
     };
 
     Provider.of<CoursesProvider>(context, listen: false)
@@ -165,6 +233,8 @@ class _AddCoursePageState extends State<AddCoursePage> {
       );
     });
   }
+
+
   Widget _buildInputRow(List<Widget> children) {
     return Row(
       children: children.expand((child) => [Expanded(child: child), const SizedBox(width: 16)]).toList()..removeLast(),

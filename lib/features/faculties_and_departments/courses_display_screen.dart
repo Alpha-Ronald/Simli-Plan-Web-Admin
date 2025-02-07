@@ -158,6 +158,7 @@ class _CoursesPageState extends State<CoursesPage> {
                           itemBuilder: (context) => [
                             const PopupMenuItem(value: 'edit', child: Text('Edit')),
                             const PopupMenuItem(value: 'copy', child: Text('Copy')),
+                            const PopupMenuItem(value: 'delete', child: Text('delete')),
                           ],
                         )),
                       ]);

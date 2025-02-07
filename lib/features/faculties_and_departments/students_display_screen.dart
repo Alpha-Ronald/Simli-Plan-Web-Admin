@@ -176,6 +176,7 @@ class _StudentsPageState extends State<StudentsPage> {
               child: SingleChildScrollView(
                 scrollDirection: Axis.vertical,
                 child: Scrollbar(
+                  thumbVisibility: true,
                   controller: _horizontalController,
                   child: SingleChildScrollView(
                     controller: _horizontalController,
