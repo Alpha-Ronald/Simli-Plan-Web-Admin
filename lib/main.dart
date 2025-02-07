@@ -1,3 +1,4 @@
+import 'package:admin_web_app_sp/services/provider/courses_provider.dart';
 import 'package:admin_web_app_sp/services/provider/department_provider.dart';
 import 'package:admin_web_app_sp/services/provider/faculty_provider.dart';
 import 'package:admin_web_app_sp/services/provider/students_provider.dart';
@@ -19,6 +20,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => FacultyProvider()),
         ChangeNotifierProvider(create: (_) => DepartmentsProvider()),
         ChangeNotifierProvider(create: (_) => StudentsListProvider()),
+        ChangeNotifierProvider(create: (_) => CoursesProvider()),
       ],
       child: MyApp(),
     ),
