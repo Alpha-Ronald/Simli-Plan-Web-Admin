@@ -2,14 +2,11 @@ import 'package:admin_web_app_sp/features/faculties_and_departments/students_dis
 import 'package:admin_web_app_sp/features/faculties_and_departments/widgets/buttom_navigation_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../../services/provider/department_provider.dart';
-import "package:admin_web_app_sp/features/faculties_and_departments/lecturers_display_screen.dart";
-
+import 'package:admin_web_app_sp/features/faculties_and_departments/lecturers_display_screen.dart';
 import 'courses_display_screen.dart';
 
-
-class DepartmentDetailsPage extends StatelessWidget {
+class DepartmentDetailsPage extends StatefulWidget {
   final String departmentId;
   final String departmentName;
 
@@ -20,17 +17,34 @@ class DepartmentDetailsPage extends StatelessWidget {
   });
 
   @override
+  _DepartmentDetailsPageState createState() => _DepartmentDetailsPageState();
+}
+
+class _DepartmentDetailsPageState extends State<DepartmentDetailsPage> {
+  late Future<void> _fetchProgramsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchProgramsFuture = _fetchPrograms();
+  }
+
+  Future<void> _fetchPrograms() async {
+    await context.read<DepartmentsProvider>().fetchPrograms(widget.departmentId);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final departmentsProvider = Provider.of<DepartmentsProvider>(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('$departmentName Department'),
+        title: Text('${widget.departmentName} Department'),
       ),
       body: FutureBuilder(
-        future: departmentsProvider.fetchPrograms(departmentId),
+        future: _fetchProgramsFuture,
         builder: (context, snapshot) {
-          final programs = departmentsProvider.getPrograms(departmentId);
+          final programs = departmentsProvider.getPrograms(widget.departmentId);
 
           if (departmentsProvider.isLoading) {
             return const Center(child: CircularProgressIndicator());
@@ -85,14 +99,13 @@ class DepartmentDetailsPage extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => LecturersPage( departmentId: departmentId,
-                                departmentName: departmentName,
+                              builder: (context) => LecturersPage( departmentId: widget.departmentId,
+                                departmentName: widget.departmentName,
                                 programs: programs,),
                             ),
                           );
                         },
                       ),
-
                       NavigationButton(
                         label: 'Students',
                         icon: Icons.school,
@@ -100,8 +113,8 @@ class DepartmentDetailsPage extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => StudentsPage( departmentId: departmentId,
-                                departmentName: departmentName ?? '',
+                              builder: (context) => StudentsPage( departmentId: widget.departmentId,
+                                departmentName: widget.departmentName,
                                 programs: programs,),
                             ),
                           );
@@ -115,8 +128,8 @@ class DepartmentDetailsPage extends StatelessWidget {
                             context,
                             MaterialPageRoute(
                               builder: (context) => CoursesPage(
-                                departmentId: departmentId,
-                                departmentName: departmentName,
+                                departmentId: widget.departmentId,
+                                departmentName: widget.departmentName,
                                 programs: programs,
                               ),
                             ),
@@ -134,4 +147,3 @@ class DepartmentDetailsPage extends StatelessWidget {
     );
   }
 }
-
