@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../../services/provider/courses_provider.dart';
 
 class AddCoursePage extends StatefulWidget {
   final String departmentId;
@@ -24,14 +25,15 @@ class _AddCoursePageState extends State<AddCoursePage> {
   String _selectedUnits = '1';
   String _selectedStatus = 'Required';
   String _selectedLevel = '100 Level';
-  String _selectedSemester = 'Alpha Semester';
+  String _selectedSemester = 'Alpha';
   String? _selectedProgram;
   final _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
 
   final List<String> units = ['1', '2', '3', '4', '5'];
   final List<String> statusOptions = ['Required', 'Compulsory', 'Elective'];
   final List<String> levels = ['100 Level', '200 Level', '300 Level', '400 Level', '500 Level'];
-  final List<String> semesters = ['Alpha Semester', 'Omega Semester'];
+  final List<String> semesters = ['Alpha', 'Omega'];
 
   @override
   Widget build(BuildContext context) {
@@ -85,42 +87,84 @@ class _AddCoursePageState extends State<AddCoursePage> {
       showDialog(
         context: context,
         builder: (context) {
-          return AlertDialog(
-            title: const Text("Confirm Course Details"),
-            content: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text("Course Code: ${_courseCodeController.text}"),
-                Text("Course Title: ${_courseTitleController.text}"),
-                Text("Units: $_selectedUnits"),
-                Text("Status: $_selectedStatus"),
-                Text("Level: $_selectedLevel"),
-                Text("Semester: $_selectedSemester"),
-                Text("Program: $_selectedProgram"),
-                Text("Faculty: FCAS"),
-                Text("Department: ${widget.departmentName}"),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Edit"),
-              ),
-              TextButton(
-                onPressed: () {
-                  // Handle submission logic
-                  Navigator.pop(context);
-                },
-                child: const Text("Confirm"),
-              ),
-            ],
+          return StatefulBuilder(
+            builder: (context, setState) {
+              return AlertDialog(
+                title: const Text("Confirm Course Details"),
+                content: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text("Course Code: ${_courseCodeController.text}"),
+                    Text("Course Title: ${_courseTitleController.text}"),
+                    Text("Units: $_selectedUnits"),
+                    Text("Status: $_selectedStatus"),
+                    Text("Level: $_selectedLevel"),
+                    Text("Semester: $_selectedSemester"),
+                    Text("Program: $_selectedProgram"),
+                    Text("Faculty: FCAS"),
+                    Text("Department: ${widget.departmentName}"),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text("Edit"),
+                  ),
+                  _isLoading
+                      ? const CircularProgressIndicator()
+                      : TextButton(
+                    onPressed: () {
+                      setState(() => _isLoading = true);
+                      _submitCourse(() {
+                        setState(() => _isLoading = false);
+                        Navigator.pop(context);
+                        Navigator.pop(context);
+                      });
+                    },
+                    child: const Text("Confirm"),
+                  ),
+                ],
+              );
+            },
           );
         },
       );
     }
   }
 
+  void _submitCourse(VoidCallback onSuccess) {
+    final String courseCode = _courseCodeController.text.isNotEmpty ? _courseCodeController.text : "N/A";
+    final courseData = {
+      "courseCode": courseCode,
+      "courseTitle": _courseTitleController.text.isNotEmpty ? _courseTitleController.text : "N/A",
+      "department": widget.departmentName,
+      "difficultyRating": {},
+      "faculty": "FCAS",
+      "lecturersAssigned": "N/A",
+      "level": _selectedLevel,
+      "program": _selectedProgram ?? "N/A",
+      "schedule": {},
+      "semester": _selectedSemester,
+      "status": _selectedStatus,
+      "students": [],
+      "units": _selectedUnits,
+    };
+
+    Provider.of<CoursesProvider>(context, listen: false)
+        .addCourse(courseData, docId: courseCode)
+        .then((_) {
+      onSuccess();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Course added successfully!")),
+      );
+    }).catchError((error) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to add course: $error")),
+      );
+    });
+  }
   Widget _buildInputRow(List<Widget> children) {
     return Row(
       children: children.expand((child) => [Expanded(child: child), const SizedBox(width: 16)]).toList()..removeLast(),
