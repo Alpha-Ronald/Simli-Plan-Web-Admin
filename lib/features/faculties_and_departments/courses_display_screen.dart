@@ -104,27 +104,30 @@ class _CoursesPageState extends State<CoursesPage> {
       children: [
         DropdownButton<String>(
           value: selectedProgram,
-          items: ['All', ...widget.programs].map((program) => DropdownMenuItem(
+          items: ['All', ...widget.programs]
+              .map((program) => DropdownMenuItem(
             value: program,
             child: Text(program),
-          )).toList(),
+          ))
+              .toList(),
           onChanged: _selectProgram,
         ),
         const SizedBox(width: 10),
         DropdownButton<String>(
           value: selectedLevel,
-          items: ['All', '100', '200', '300', '400', '500']
+          items: ['All', '100 Level', '200 Level', '300 Level', '400 Level', '500 Level']
               .map((level) => DropdownMenuItem(
             value: level,
-            child: Text('$level Level'),
-          )).toList(),
+            child: Text('$level'),
+          ))
+              .toList(),
           onChanged: _selectLevel,
         ),
       ],
     );
   }
 
-  /// Fetch & Display Courses in Table
+  /// Display Courses Table
   Widget _buildCoursesTable() {
     return Consumer<CoursesProvider>(
       builder: (context, provider, child) {
@@ -133,30 +136,28 @@ class _CoursesPageState extends State<CoursesPage> {
         }
 
         List<Map<String, dynamic>> filteredCourses = provider.courses.where((course) {
-          List<dynamic>? programs = course['programs'] as List<dynamic>?;
-
-          // Debugging the structure of programs
-          debugPrint("Programs for ${course['courseCode']}: $programs");
+          final programs = course['programs'] as List<dynamic>? ?? [];
 
           bool matchesProgram = selectedProgram == 'All' ||
-              (programs is List &&
-                  programs.any((p) =>
-                  p is Map<String, dynamic> &&
-                      p['programName'] == selectedProgram));
+              programs.any((p) =>
+              p is Map<String, dynamic> &&
+                  p['programName']?.toString() == selectedProgram);
 
-          bool matchesLevel = selectedLevel == 'All' || course['level'] == selectedLevel;
+          bool matchesLevel = selectedLevel == 'All' ||
+              course['level']?.toString() == selectedLevel;
 
           return matchesProgram && matchesLevel;
         }).toList();
 
+        if (filteredCourses.isEmpty) {
+          return const Center(child: Text("No courses match the selected filters."));
+        }
+
+        // Group by program for display
         Map<String, List<Map<String, dynamic>>> groupedByProgram = {};
         for (var course in filteredCourses) {
-          if (course['programs'] == null || course['programs'] is! Iterable) {
-            debugPrint("Skipping course due to missing or invalid 'programs' field: ${course['courseCode']}");
-            continue;
-          }
-
-          for (var program in course['programs']) {
+          final programs = course['programs'] as List<dynamic>? ?? [];
+          for (var program in programs) {
             if (program is! Map<String, dynamic>) continue;
             String programName = program['programName'] ?? 'Unknown Program';
             groupedByProgram.putIfAbsent(programName, () => []).add(course);
@@ -182,32 +183,44 @@ class _CoursesPageState extends State<CoursesPage> {
               ],
               rows: groupedByProgram.entries.expand((entry) {
                 List<DataRow> rows = [];
+
+                // Program heading row
                 rows.add(
-                  DataRow(cells: [
-                    DataCell(Text(entry.key, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue))),
-                    ...List.filled(9, const DataCell(Text(''))),
-                  ]),
+                  DataRow(
+                    cells: [
+                      DataCell(Text(
+                        entry.key,
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
+                      )),
+                      ...List.filled(9, const DataCell(Text(''))),
+                    ],
+                  ),
                 );
+
                 int index = 1;
                 rows.addAll(entry.value.map((course) {
                   var programDetails = (course['programs'] as List)
                       .firstWhere(
-                        (p) => p is Map<String, dynamic> && p['programName'] == entry.key,
+                        (p) =>
+                    p is Map<String, dynamic> &&
+                        p['programName'] == entry.key,
                     orElse: () => {'status': 'Unknown', 'units': '0'},
                   );
 
-                  return DataRow(cells: [
-                    DataCell(Text((index++).toString())),
-                    DataCell(Text(course['courseCode'] ?? 'N/A')),
-                    DataCell(Text(course['courseTitle'] ?? 'N/A')),
-                    DataCell(Text(programDetails['units'].toString())),
-                    DataCell(Text(programDetails['status'])),
-                    DataCell(Text('${course['level']} Level')),
-                    DataCell(Text(course['lecturersAssigned'] ?? 'N/A')),
-                    DataCell(Text(course['semester'] ?? 'N/A')),
-                    DataCell(Text(_formatSchedule(course['schedule']))),
-                    DataCell(_buildOptionsMenu(course)),
-                  ]);
+                  return DataRow(
+                    cells: [
+                      DataCell(Text((index++).toString())),
+                      DataCell(Text(course['courseCode'] ?? 'N/A')),
+                      DataCell(Text(course['courseTitle'] ?? 'N/A')),
+                      DataCell(Text(programDetails['units'].toString())),
+                      DataCell(Text(programDetails['status'].toString())),
+                      DataCell(Text('${course['level']}')),
+                      DataCell(Text(course['lecturersAssigned'] ?? 'N/A')),
+                      DataCell(Text(course['semester'] ?? 'N/A')),
+                      DataCell(Text(_formatSchedule(course['schedule']))),
+                      DataCell(_buildOptionsMenu(course)),
+                    ],
+                  );
                 }));
                 return rows;
               }).toList(),
@@ -224,20 +237,22 @@ class _CoursesPageState extends State<CoursesPage> {
     return schedule.entries.map((e) => "${e.key}: ${e.value}").join("\n");
   }
 
-  /// Options Menu (Edit, Copy, Delete)
+  /// Options Menu
   Widget _buildOptionsMenu(Map<String, dynamic> course) {
     return PopupMenuButton<String>(
       onSelected: (value) {
         if (value == 'edit') {
-          // Handle edit
+          // Edit logic
         } else if (value == 'copy') {
-          // Handle copy
+          // Copy logic
+        } else if (value == 'delete') {
+          // Delete logic
         }
       },
-      itemBuilder: (context) => [
-        const PopupMenuItem(value: 'edit', child: Text('Edit')),
-        const PopupMenuItem(value: 'copy', child: Text('Copy')),
-        const PopupMenuItem(value: 'delete', child: Text('Delete')),
+      itemBuilder: (context) => const [
+        PopupMenuItem(value: 'edit', child: Text('Edit')),
+        PopupMenuItem(value: 'copy', child: Text('Copy')),
+        PopupMenuItem(value: 'delete', child: Text('Delete')),
       ],
     );
   }
