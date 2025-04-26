@@ -11,7 +11,7 @@ class SideNav extends StatelessWidget {
     {'icon': Icons.dashboard, 'title': 'Overview'},
     {'icon': Icons.school, 'title': 'Faculties And Departments'},
     {'icon': Icons.calendar_today, 'title': 'Time-Table'},
-    {'icon': Icons.class_, 'title': 'Lecturers'},
+    {'icon': Icons.class_, 'title': 'Venues'},
     {'icon': Icons.people_alt_outlined, 'title': 'Students'},
     {'icon': Icons.book_outlined, 'title': 'Courses'},
     {'icon': Icons.notifications, 'title': 'Notifications'},
