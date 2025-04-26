@@ -99,9 +99,9 @@ class _DepartmentDetailsPageState extends State<DepartmentDetailsPage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => LecturersPage( departmentId: widget.departmentId,
+                              builder: (context) => LecturerScreen( departmentId: widget.departmentId,
                                 departmentName: widget.departmentName,
-                                programs: programs,),
+                                programs: programs, lecturers: demoLecturers),
                             ),
                           );
                         },
