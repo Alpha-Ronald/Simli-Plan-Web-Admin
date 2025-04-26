@@ -101,7 +101,7 @@ class _DepartmentDetailsPageState extends State<DepartmentDetailsPage> {
                             MaterialPageRoute(
                               builder: (context) => LecturerScreen( departmentId: widget.departmentId,
                                 departmentName: widget.departmentName,
-                                programs: programs, lecturers: demoLecturers),
+                                programs: programs),
                             ),
                           );
                         },

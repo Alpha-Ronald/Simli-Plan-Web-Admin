@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class LecturerModel {
   final String id;
   final String firstName;
@@ -6,7 +8,8 @@ class LecturerModel {
   final String title;
   final String email;
   final String department;
-  final List<String> coursesAssigned;
+  final List<String> coursesAssignedList; // for old data (list)
+  final Map<String, dynamic> coursesAssignedMap; // for new data (map)
 
   LecturerModel({
     required this.id,
@@ -16,33 +19,33 @@ class LecturerModel {
     required this.title,
     required this.email,
     required this.department,
-    required this.coursesAssigned,
+    required this.coursesAssignedList,
+    required this.coursesAssignedMap,
   });
 
-  // For converting from Firestore
-  factory LecturerModel.fromMap(Map<String, dynamic> map, String docId) {
-    return LecturerModel(
-      id: docId,
-      firstName: map['firstName'] ?? '',
-      lastName: map['lastName'] ?? '',
-      role: map['role'] ?? '',
-      title: map['title'] ?? '',
-      email: map['email'] ?? '',
-      department: map['department'] ?? '',
-      coursesAssigned: List<String>.from(map['coursesAssigned'] ?? []),
-    );
-  }
+  factory LecturerModel.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    final coursesAssignedRaw = data['coursesAssigned'];
 
-  // For converting to Firestore
-  Map<String, dynamic> toMap() {
-    return {
-      'firstName': firstName,
-      'lastName': lastName,
-      'role': role,
-      'title': title,
-      'email': email,
-      'department': department,
-      'coursesAssigned': coursesAssigned,
-    };
+    List<String> coursesAssignedList = [];
+    Map<String, dynamic> coursesAssignedMap = {};
+
+    if (coursesAssignedRaw is List) {
+      coursesAssignedList = List<String>.from(coursesAssignedRaw);
+    } else if (coursesAssignedRaw is Map) {
+      coursesAssignedMap = Map<String, dynamic>.from(coursesAssignedRaw);
+    }
+
+    return LecturerModel(
+      id: doc.id,
+      firstName: data['firstName'] ?? '',
+      lastName: data['lastName'] ?? '',
+      role: data['role'] ?? '',
+      title: data['title'] ?? '',
+      email: data['email'] ?? '',
+      department: data['department'] ?? '',
+      coursesAssignedList: coursesAssignedList,
+      coursesAssignedMap: coursesAssignedMap,
+    );
   }
 }

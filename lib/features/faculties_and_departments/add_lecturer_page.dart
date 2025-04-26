@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AddLecturerPage extends StatefulWidget {
   const AddLecturerPage({Key? key}) : super(key: key);
@@ -10,22 +11,36 @@ class AddLecturerPage extends StatefulWidget {
 
 class _AddLecturerPageState extends State<AddLecturerPage> {
   final _formKey = GlobalKey<FormState>();
+  List<String> availableCourses = [];
+  String courseSearchQuery = '';
+  List<String> filteredAvailableCourses = [];
 
-  final List<String> demoCourses = [
-    'CSC101', 'CSC202', 'CSC303',
-    'CYB201', 'CYB301', 'SEN101', 'SEN203',
-  ];
+  @override
+  void initState() {
+    super.initState();
+    fetchCourses();
+  }
+
+  void fetchCourses() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('Courses')
+          .where('department', isEqualTo: selectedDepartment)
+          .get();
+
+      setState(() {
+        availableCourses = snapshot.docs.map((doc) => doc['courseCode'] as String).toList();
+        filteredAvailableCourses = availableCourses; // Initialize filtered list
+      });
+    } catch (e) {
+      print('Error fetching courses: $e');
+    }
+  }
+
 
   Map<String, List<String>> selectedCourses = {}; // key: course, value: linked courses
 
   bool showCourseDropdown = false;
-  //
-  // String firstName = '';
-  // String lastName = '';
-  // String title = '';
-  // String role = '';
-  // String email = '';
-  // String department = '';
   List<String> coursesAssigned = [];
 
   final courseController = TextEditingController();
@@ -53,11 +68,91 @@ class _AddLecturerPageState extends State<AddLecturerPage> {
     }
   }
 
-  void saveLecturer() {
+  void saveLecturer() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
-      // TODO: Save Lecturer to Database
-      Navigator.pop(context);
+
+      // Show confirmation dialog
+      bool confirm = await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Confirm Details'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: [
+                Text('ID: ${_idController.text}'),
+                Text('First Name: ${_firstNameController.text}'),
+                Text('Last Name: ${_lastNameController.text}'),
+                Text('Email: ${_emailController.text}'),
+                Text('Title: $selectedTitle'),
+                Text('Role: $selectedRole'),
+                Text('Faculty: $selectedFaculty'),
+                Text('Department: $selectedDepartment'),
+                Text('Courses Assigned: ${selectedCourses.keys.join(", ")}'),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Confirm'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm == true) {
+        try {
+          await FirebaseFirestore.instance.collection('Lecturers').doc(_idController.text).set({
+            'id': _idController.text,
+            'firstName': _firstNameController.text,
+            'lastName': _lastNameController.text,
+            'email': _emailController.text,
+            'title': selectedTitle,
+            'role': selectedRole,
+            'faculty': selectedFaculty,
+            'department': selectedDepartment,
+            'coursesAssigned': selectedCourses.map((course, linked) => MapEntry(course, linked)),
+            'timestamp': FieldValue.serverTimestamp(),
+          });
+
+          // After saving lecturer
+          for (var entry in selectedCourses.entries) {
+            final courseId = entry.key; // e.g., BIO101
+            final linkedCourses = entry.value; // List<String> of linked course IDs
+
+
+            for (var linkedCourseId in linkedCourses) {
+              final linkedCourseRef = FirebaseFirestore.instance.collection('Courses').doc(linkedCourseId);
+
+              await linkedCourseRef.update({
+                'linkedCourses': FieldValue.arrayUnion([courseId]),
+              });
+            }
+
+            // Now update the current course's linkedCourses field
+            final courseRef = FirebaseFirestore.instance.collection('Courses').doc(courseId);
+            await courseRef.update({
+              'linkedCourses': FieldValue.arrayUnion(linkedCourses),
+            });
+          }
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Lecturer saved successfully!')),
+            );
+            Navigator.pop(context);
+          }
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error saving lecturer: $e')),
+          );
+        }
+      }
     }
   }
 
@@ -215,21 +310,39 @@ class _AddLecturerPageState extends State<AddLecturerPage> {
                     ],
                   ),
                   child: Column(
-                    children: demoCourses.map((course) {
-                      if (selectedCourses.containsKey(course)) return Container();
-                      return ListTile(
-                        title: Text(course),
-                        onTap: () {
+                    children: [
+                      TextField(
+                        decoration: const InputDecoration(
+                          hintText: 'Search courses...',
+                          prefixIcon: Icon(Icons.search),
+                        ),
+                        onChanged: (value) {
                           setState(() {
-                            selectedCourses[course] = [];
-                            showCourseDropdown = false;
+                            courseSearchQuery = value;
+                            filteredAvailableCourses = availableCourses
+                                .where((course) => course.toLowerCase().contains(courseSearchQuery.toLowerCase()))
+                                .toList();
                           });
                         },
-                      );
-                    }).toList(),
+                      ),
+                      const SizedBox(height: 10),
+                      ...filteredAvailableCourses.map((course) {
+                        if (selectedCourses.containsKey(course)) return Container();
+                        return ListTile(
+                          title: Text(course),
+                          onTap: () {
+                            setState(() {
+                              selectedCourses[course] = [];
+                              showCourseDropdown = false;
+                              courseSearchQuery = ''; // Reset search
+                              filteredAvailableCourses = availableCourses;
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ],
                   ),
                 ),
-
 
               Wrap(
                 spacing: 6,
@@ -346,31 +459,71 @@ class _AddLecturerPageState extends State<AddLecturerPage> {
     );
   }
 
-  void _showLinkedCoursesDropdown(BuildContext context, String course) {
+  void _showLinkedCoursesDropdown(BuildContext context, String mainCourse) {
+    String searchQuery = '';
+    List<String> filteredCourses = [];
+
+    void updateFilteredCourses() {
+      filteredCourses = availableCourses
+          .where((c) =>
+      c != mainCourse &&
+          !selectedCourses[mainCourse]!.contains(c) &&
+          c.toLowerCase().contains(searchQuery.toLowerCase()))
+          .toList();
+    }
+    updateFilteredCourses();
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       builder: (context) {
-        final availableCourses = demoCourses
-            .where((c) => c != course && !selectedCourses[course]!.contains(c))
-            .toList();
-        return Container(
-          padding: const EdgeInsets.all(16),
-          child: ListView(
-            children: availableCourses.map((linkedCourse) {
-              return ListTile(
-                title: Text(linkedCourse),
-                onTap: () {
-                  setState(() {
-                    selectedCourses[course]!.add(linkedCourse);
-                  });
-                  Navigator.pop(context);
-                },
-              );
-            }).toList(),
-          ),
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      decoration: const InputDecoration(
+                        hintText: 'Search courses...',
+                        prefixIcon: Icon(Icons.search),
+                      ),
+                      onChanged: (value) {
+                        setModalState(() {
+                          searchQuery = value;
+                          updateFilteredCourses();
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    filteredCourses.isEmpty
+                        ? const Center(child: Text('No courses found'))
+                        : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: filteredCourses.length,
+                      itemBuilder: (context, index) {
+                        final linkedCourse = filteredCourses[index];
+                        return ListTile(
+                          title: Text(linkedCourse),
+                          onTap: () {
+                            setState(() {
+                              selectedCourses[mainCourse]!.add(linkedCourse);
+                            });
+                            Navigator.pop(context);
+                          },
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         );
       },
     );
   }
 
 }
+///pending isses: i can't scroll the second dialogue, and i need a search for the first drop down
