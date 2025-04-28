@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/models/venue_model.dart';
@@ -18,6 +19,7 @@ class _AddVenuePageState extends State<AddVenuePage> {
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _idController = TextEditingController();
   String selectedFaculty = 'FCAS';
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -100,21 +102,68 @@ class _AddVenuePageState extends State<AddVenuePage> {
     );
   }
 
-  void _saveVenue() {
+  void _saveVenue() async {
     if (_formKey.currentState!.validate()) {
-
       final newVenue = VenueModel(
-        id: UniqueKey().toString(), // For now just generating a unique ID
+        id: _idController.text.trim(), // Now using manually entered ID
         name: _nameController.text.trim(),
-        faculty: _facultyController.text.trim(),
+        faculty: selectedFaculty,
         capacity: int.parse(_capacityController.text.trim()),
         locationDescription: _locationController.text.trim(),
       );
 
-      // You can pass the new venue back
-      Navigator.pop(context, newVenue);
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Confirm Venue Details'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('ID: ${newVenue.id}'),
+                Text('Name: ${newVenue.name}'),
+                Text('Faculty: ${newVenue.faculty}'),
+                Text('Capacity: ${newVenue.capacity} Students'),
+                Text('Location: ${newVenue.locationDescription}'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Confirm'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (confirm == true) {
+        // Upload to Firestore
+        try {
+          await FirebaseFirestore.instance
+              .collection('Venues')
+              .doc(newVenue.id)
+              .set(newVenue.toMap());
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Venue added successfully!')),
+          );
+
+          Navigator.pop(context);
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to add venue: $e')),
+          );
+        }
+      }
     }
   }
+
   Widget _buildInputRow(List<Widget> children) {
     return Row(
       children: children

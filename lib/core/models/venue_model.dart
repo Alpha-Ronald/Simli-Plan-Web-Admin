@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class VenueModel {
   final String id;
   final String name;
@@ -21,6 +23,11 @@ class VenueModel {
       capacity: map['capacity'] ?? 0,
       locationDescription: map['location_description'] ?? '',
     );
+  }
+
+  factory VenueModel.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return VenueModel.fromMap(data, doc.id);
   }
 
   Map<String, dynamic> toMap() {

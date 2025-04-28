@@ -1,18 +1,50 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // import Firestore
 import '../../core/models/venue_model.dart';
-import '../faculties_and_departments/faculties_and_departments_screen.dart';
 import 'add_venue_screen.dart';
 
-class VenueScreen extends StatelessWidget {
-  final List<VenueModel> venues;
+class VenueScreen extends StatefulWidget {
+  const VenueScreen({super.key});
 
-  const VenueScreen({super.key, required this.venues});
+  @override
+  State<VenueScreen> createState() => _VenueScreenState();
+}
+
+class _VenueScreenState extends State<VenueScreen> {
+  List<VenueModel> venues = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchVenues();
+  }
+
+  Future<void> fetchVenues() async {
+    try {
+      final querySnapshot = await FirebaseFirestore.instance.collection('Venues').get();
+      venues = querySnapshot.docs.map((doc) => VenueModel.fromFirestore(doc)).toList();
+    } catch (e) {
+      print('Error fetching venues: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading venues')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Venues')),
-      body: Padding(
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
         padding: const EdgeInsets.all(12.0),
         child: GridView.builder(
           itemCount: venues.length + 1, // One extra for the "Add" card
@@ -24,13 +56,12 @@ class VenueScreen extends StatelessWidget {
           ),
           itemBuilder: (context, index) {
             if (index == venues.length) {
-
               return GestureDetector(
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const AddVenuePage()),
-                  );
+                  ).then((_) => fetchVenues()); // Refresh after adding new
                 },
                 child: Card(
                   elevation: 4,
