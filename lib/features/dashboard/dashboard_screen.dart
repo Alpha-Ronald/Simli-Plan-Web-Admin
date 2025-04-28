@@ -1,4 +1,5 @@
 
+import 'package:admin_web_app_sp/features/dashboard/timetable_scheduling_section/timetable_schedule_overview_screen.dart';
 import 'package:flutter/material.dart';
 import '../../core/models/venue_model.dart';
 import '../faculties_and_departments/faculties_and_departments_screen.dart';
@@ -29,31 +30,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final List<Widget> _pages = [
     const OverviewContent(),
     const FacultyTabBarWithDepartments(),
-    Center(child: Text("Time-Table")),
+    TimetableScheduleOverviewPage(),
     VenueScreen(
-      venues: [
-        VenueModel(
-          id: 'v1',
-          name: 'Lecture Hall A',
-          faculty: 'Faculty of Science',
-          capacity: 200,
-          locationDescription: 'First floor, Building 1',
-        ),
-        VenueModel(
-          id: 'v2',
-          name: 'Auditorium B',
-          faculty: 'Faculty of Arts',
-          capacity: 500,
-          locationDescription: 'Main Auditorium, Building 3',
-        ),
-        VenueModel(
-          id: 'v3',
-          name: 'Lab C',
-          faculty: 'Faculty of Engineering',
-          capacity: 100,
-          locationDescription: 'Lab Block, Room 12',
-        ),
-      ],
     ),
 
     Center(child: Text("Students")),
