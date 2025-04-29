@@ -9,7 +9,6 @@ class TimetableOverviewPage extends StatelessWidget {
   Widget build(BuildContext context) {
     // Sample dummy data
     final List<Map<String, dynamic>> timetables = [
-
       {
         'name': 'First Semester 2024/2025',
         'isActive': true,

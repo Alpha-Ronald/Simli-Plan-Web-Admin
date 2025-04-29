@@ -8,11 +8,11 @@ class CreateTimetablePage extends StatefulWidget {
 
 class _CreateTimetablePageState extends State<CreateTimetablePage> {
   final List<String> timeSlots = [
-    '8AM-10AM',
-    '10AM-12PM',
-    '12PM-1PM',
-    '1PM-3PM',
-    '3PM-4PM',
+    '8 AM - 10 AM',
+    '10 AM - 12 PM',
+    '12 PM - 1 PM',
+    '1 PM - 3 PM',
+    '3 PM - 4 PM',
   ];
 
   final List<String> days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
@@ -137,3 +137,4 @@ class _CreateTimetablePageState extends State<CreateTimetablePage> {
     return cells;
   }
 }
+
