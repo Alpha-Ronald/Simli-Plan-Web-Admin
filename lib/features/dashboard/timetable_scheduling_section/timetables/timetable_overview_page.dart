@@ -1,60 +1,80 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'timetable_details_screen.dart';
+import 'new_timetable_dialogue.dart';
 
-import 'create_timetable_screen.dart';
-
-class TimetableOverviewPage extends StatelessWidget {
+class TimetableOverviewPage extends StatefulWidget {
   const TimetableOverviewPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Sample dummy data
-    final List<Map<String, dynamic>> timetables = [
-      {
-        'name': 'First Semester 2024/2025',
-        'isActive': true,
-        'startDate': 'Oct 2024',
-        'endDate': 'Feb 2025',
-      },
-      {
-        'name': 'Second Semester 2024/2025',
-        'isActive': false,
-        'startDate': 'Mar 2025',
-        'endDate': 'Jul 2025',
-      },
-    ];
+  State<TimetableOverviewPage> createState() => _TimetableOverviewPageState();
+}
 
+class _TimetableOverviewPageState extends State<TimetableOverviewPage> {
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Timetables'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: GridView.builder(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            childAspectRatio: 4 / 2,
-          ),
-          itemCount: timetables.length + 1, // +1 for the "Create New" card
-          itemBuilder: (context, index) {
-            if (index == timetables.length) {
-              // Create New Timetable Card
-              return _buildCreateNewCard(context);
+        child: StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance.collection('Timetables').snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
             }
 
-            final timetable = timetables[index];
-            return _buildTimetableCard(context, timetable);
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return const Center(child: Text('No timetables found.'));
+            }
+
+            final timetables = snapshot.data!.docs;
+
+
+            return GridView.builder(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 4 / 2,
+              ),
+              itemCount: timetables.length + 1,
+              itemBuilder: (context, index) {
+                if (index == timetables.length) {
+                  return _buildCreateNewCard(context);
+                }
+
+                final doc = timetables[index];
+                final data = doc.data() as Map<String, dynamic>;
+
+                return _buildTimetableCard(context, data, doc.id);
+              },
+            );
           },
         ),
       ),
     );
   }
 
-  Widget _buildTimetableCard(BuildContext context, Map<String, dynamic> timetable) {
+  Widget _buildTimetableCard(BuildContext context, Map<String, dynamic> timetable, String docId) {
+    final Timestamp startTimestamp = timetable['startDate'];
+    final Timestamp endTimestamp = timetable['endDate'];
+    final String formattedStart = DateFormat('dd MMM yyyy').format(startTimestamp.toDate());
+    final String formattedEnd = DateFormat('dd MMM yyyy').format(endTimestamp.toDate());
     return GestureDetector(
       onTap: () {
-        // TODO: Navigate to view/manage this specific timetable
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => TimetableDetailsPage(
+               timetableId: docId ,
+              timetableName: timetable['name'] ?? '',
+            ),
+          ),
+        );
       },
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -73,7 +93,7 @@ class TimetableOverviewPage extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              timetable['name'],
+              timetable['name'] ?? 'No Name',
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -82,7 +102,7 @@ class TimetableOverviewPage extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '${timetable['startDate']} - ${timetable['endDate']}',
+              '$formattedStart - $formattedEnd',
               style: const TextStyle(
                 fontSize: 14,
                 color: Colors.black54,
@@ -93,15 +113,15 @@ class TimetableOverviewPage extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: timetable['isActive'] ? Colors.green[100] : Colors.grey[300],
+                color: timetable['active'] == true ? Colors.green[100] : Colors.grey[300],
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                timetable['isActive'] ? 'Active' : 'Inactive',
+                timetable['active'] == true ? 'Active' : 'Inactive',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: timetable['isActive'] ? Colors.green : Colors.black54,
+                  color: timetable['active'] == true ? Colors.green : Colors.black54,
                 ),
               ),
             )
@@ -113,9 +133,10 @@ class TimetableOverviewPage extends StatelessWidget {
 
   Widget _buildCreateNewCard(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => CreateTimetablePage()));
-      },
+      onTap: () => showDialog(
+        context: context,
+        builder: (_) => const CreateTimetableDialog(),
+      ),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.blue[50],

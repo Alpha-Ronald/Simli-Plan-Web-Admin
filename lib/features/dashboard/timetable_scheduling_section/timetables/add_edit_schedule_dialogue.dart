@@ -1,10 +1,16 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class AddEditScheduleDialog extends StatefulWidget {
-  final String day;
-  final List<String> availableSlots; // 👈 pass all available slots
+  final List<String> availableSlots;
+  final String timetableId;
+  final String? initialDay; // optional, in case you want to preselect
 
-  const AddEditScheduleDialog({required this.day, required this.availableSlots});
+  const AddEditScheduleDialog({
+    required this.availableSlots,
+    required this.timetableId,
+    this.initialDay,
+  });
 
   @override
   State<AddEditScheduleDialog> createState() => _AddEditScheduleDialogState();
@@ -12,7 +18,9 @@ class AddEditScheduleDialog extends StatefulWidget {
 
 class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
   final TextEditingController _venueController = TextEditingController();
+
   String? selectedCourse;
+  String? selectedDay;
   TimeOfDay? startTime;
   TimeOfDay? endTime;
 
@@ -22,20 +30,30 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
     'CSC101 - Intro to Programming',
   ];
 
+  final List<String> weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
   @override
   void initState() {
     super.initState();
     startTime = const TimeOfDay(hour: 8, minute: 0);
     endTime = const TimeOfDay(hour: 10, minute: 0);
+    selectedDay = widget.initialDay ?? weekdays.first;
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text('Add Schedule - ${widget.day}'),
+      title: const Text('Add/Edit Schedule'),
       content: SingleChildScrollView(
         child: Column(
           children: [
+            DropdownButtonFormField<String>(
+              decoration: const InputDecoration(labelText: 'Select Day'),
+              value: selectedDay,
+              items: weekdays.map((day) => DropdownMenuItem(value: day, child: Text(day))).toList(),
+              onChanged: (value) => setState(() => selectedDay = value),
+            ),
+            const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               decoration: const InputDecoration(labelText: 'Select Course'),
               items: dummyCourses.map((course) => DropdownMenuItem(value: course, child: Text(course))).toList(),
@@ -75,13 +93,42 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         ElevatedButton(
-          onPressed: () {
-            if (selectedCourse != null && startTime != null && endTime != null) {
-              final result = _createScheduleData(context);
-              Navigator.pop(context, result);
-            }
-          },
-          child: const Text('Save'),
+    onPressed: () async {
+    if (selectedCourse != null && selectedDay != null && startTime != null && endTime != null) {
+    final result = _createScheduleData(context);
+
+    // show loading dialog and hold its context
+    showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (dialogContext) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+    await FirebaseFirestore.instance
+        .collection('Timetables')
+        .doc(widget.timetableId)
+        .collection('ScheduledCourses')
+        .add(result);
+
+    Navigator.pop(context); // Close loading dialog
+    Navigator.pop(context, result); // Close schedule dialog with result
+    } catch (e) {
+    Navigator.pop(context); // Close loading dialog
+    ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text('Error saving: $e')),
+    );
+    }
+    } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Please select all fields before saving.')),
+    );
+    }
+    },
+
+
+
+    child: const Text('Save'),
         ),
       ],
     );
@@ -91,14 +138,14 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
     String calculatedSlot = _findTimeSlotForStart(startTime!);
 
     return {
-      'day': widget.day,
-      'course': selectedCourse!,
+      'day': selectedDay!,
+      'courseCode': selectedCourse!,
       'venue': _venueController.text,
-      'start': startTime!.format(context),
-      'end': endTime!.format(context),
-      'startSlot': calculatedSlot,
-      'span': 1,
+      'startTime': startTime!.format(context),
+      'endTime': endTime!.format(context),
+      // 'startSlot': calculatedSlot,
     };
+
   }
 
   String _findTimeSlotForStart(TimeOfDay start) {
@@ -106,6 +153,11 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
 
     for (final slot in widget.availableSlots) {
       final parts = slot.split('-');
+      if (parts.length != 2) {
+        debugPrint('Invalid slot format: $slot'); // helpful for debugging
+        continue;
+      }
+
       final from = _parseTime(parts[0]);
       final to = _parseTime(parts[1]);
 
@@ -114,8 +166,9 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
       }
     }
 
-    return widget.availableSlots.first; // fallback
+    return widget.availableSlots.isNotEmpty ? widget.availableSlots.first : 'Unknown Slot';
   }
+
 
   int _parseTime(String timeStr) {
     timeStr = timeStr.toUpperCase();
@@ -127,3 +180,5 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
     return hour * 60;
   }
 }
+
+
