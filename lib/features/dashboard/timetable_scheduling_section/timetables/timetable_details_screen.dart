@@ -13,13 +13,7 @@ class TimetableDetailsPage extends StatefulWidget {
 
 
 class _TimetableDetailsPageState extends State<TimetableDetailsPage> {
-  // final List<String> timeSlots = [
-  //   '08:00 AM',
-  //   '10:00 AM',
-  //   '12:00 PM',
-  //   '01:00 PM',
-  //   '03:00 PM',
-  // ];
+
   final List<Map<String, dynamic>> timeSlotRanges = [
     {'label': '08:00 AM', 'start': TimeOfDay(hour: 8, minute: 0), 'end': TimeOfDay(hour: 10, minute: 0)},
     {'label': '10:00 AM', 'start': TimeOfDay(hour: 10, minute: 0), 'end': TimeOfDay(hour: 12, minute: 0)},
@@ -95,30 +89,64 @@ print(fetchedSchedules);
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.timetableName)),
-      body: SingleChildScrollView(
-        scrollDirection: Axis.vertical,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Column(
-            children: [
-              // Time slot headers
-              Row(
+
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('Timetables')
+            .doc(widget.timetableId)
+            .collection('ScheduledCourses')
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+
+          final docs = snapshot.data?.docs ?? [];
+
+          final schedules = docs.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            return {
+              'id': doc.id,
+              'course': data['courseCode'] ?? '',
+              'venue': data['venue'] ?? '',
+              'day': data['day'] ?? '',
+              'start': data['startTime'] ?? '',
+              'end': data['endTime'] ?? '',
+            };
+          }).toList();
+
+          return SingleChildScrollView(
+            scrollDirection: Axis.vertical,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Column(
                 children: [
-                  const SizedBox(width: 100), // Empty top-left
-                  ...timeSlotRanges.map((slot) => _buildHeaderCell(slot['label'] as String)).toList(),
+                  // Time slot headers
+                  Row(
+                    children: [
+                      const SizedBox(width: 100),
+                      ...timeSlotRanges.map((slot) => _buildHeaderCell(slot['label'] as String)).toList(),
+                    ],
+                  ),
+                  // Day rows
+                  ...days.map((day) => Row(
+                    children: [
+                      _buildDayCell(day),
+                      ..._buildRowCells(context, day, schedules),
+                    ],
+                  )),
                 ],
               ),
-              // Day rows
-              ...days.map((day) => Row(
-                children: [
-                  _buildDayCell(day),
-                  ..._buildRowCells(context, day),
-                ],
-              )),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
+
+
     );
   }
 
@@ -142,7 +170,8 @@ print(fetchedSchedules);
     );
   }
 
-  List<Widget> _buildRowCells(BuildContext context, String day) {
+  List<Widget> _buildRowCells(BuildContext context, String day, List<Map<String, dynamic>> schedules)
+  {
     List<Widget> cells = [];
     int timeIndex = 0;
 
@@ -171,24 +200,7 @@ print(fetchedSchedules);
 
       }).toList();
       cells.add(
-        GestureDetector(
-          onTap: () async {
-            final result = await showDialog(
-              context: context,
-              builder: (_) => AddEditScheduleDialog(
-               // day: day,
-                availableSlots: timeSlotRanges.map((slot) => slot['label'] as String).toList(),
-                initialDay: fullDayMap[day]!,
-                timetableId: widget.timetableId,
-              ),
-            );
-            if (result != null) {
-              setState(() {
-                schedules.add(result);
-              });
-            }
-          },
-          child: Container(
+          Container(
             width: 200,
             height: 120,
             margin: const EdgeInsets.all(4),
@@ -196,33 +208,67 @@ print(fetchedSchedules);
               border: Border.all(color: Colors.black12),
               color: slotSchedules.isNotEmpty ? Colors.blue[50] : null,
             ),
-            child: slotSchedules.isEmpty
-                ? const Center(child: Text('Add'))
-                : ListView.builder(
-              padding: const EdgeInsets.all(4),
-              itemCount: slotSchedules.length,
-              itemBuilder: (context, index) {
-                final schedule = slotSchedules[index];
-                return Container(
-                  margin: const EdgeInsets.symmetric(vertical: 2),
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[100],
-                    borderRadius: BorderRadius.circular(4),
+            child: Column(
+              children: [
+                InkWell(
+                  onTap: () async {
+                    final result = await showDialog(
+                      context: context,
+                      builder: (_) => AddEditScheduleDialog(
+                        availableSlots: timeSlotRanges.map((slot) => slot['label'] as String).toList(),
+                        initialDay: fullDayMap[day]!,
+                        timetableId: widget.timetableId,
+                      ),
+                    );
+                    if (result != null) {
+                      setState(() {
+                        schedules.add(result);
+                      });
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
+                    margin: const EdgeInsets.only(bottom: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.green[100],
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text('Add', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(schedule['course'], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                      Text(schedule['venue'], style: const TextStyle(fontSize: 10)),
-                      Text('${schedule['start']} - ${schedule['end']}', style: const TextStyle(fontSize: 10)),
-                    ],
+                ),
+                Expanded(
+                  child: slotSchedules.isEmpty
+                      ? const Center(child: Text('No courses'))
+                      : ListView.builder(
+                    itemCount: slotSchedules.length,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    itemBuilder: (context, index) {
+                      final schedule = slotSchedules[index];
+                      return Container(
+                        margin: const EdgeInsets.symmetric(vertical: 2),
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.blue[100],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(schedule['course'], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                            Text(schedule['venue'], style: const TextStyle(fontSize: 10)),
+                            Text('${schedule['start']} - ${schedule['end']}', style: const TextStyle(fontSize: 10)),
+                          ],
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
+                ),
+              ],
             ),
-          ),
-        ),
+          )
+
+
+
       );
 
       timeIndex++;

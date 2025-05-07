@@ -39,6 +39,7 @@ dependencies:
   firebase_crashlytics:
   provider:
   intl:
+  dropdown_search: ^5.0.6
 
 
 

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/material.dart';
 
 class AddEditScheduleDialog extends StatefulWidget {
@@ -17,6 +18,13 @@ class AddEditScheduleDialog extends StatefulWidget {
 }
 
 class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
+
+  List<Map<String, dynamic>> allCourses = [];
+  List<String> filteredCourseCodes = [];
+  List<String> venues = [];
+
+  final TextEditingController _courseSearchController = TextEditingController();
+
   final TextEditingController _venueController = TextEditingController();
 
   String? selectedCourse;
@@ -24,53 +32,129 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
   TimeOfDay? startTime;
   TimeOfDay? endTime;
 
-  final List<String> dummyCourses = [
-    'MTH101 - Calculus I',
-    'PHY101 - Mechanics',
-    'CSC101 - Intro to Programming',
+  // final List<String> dummyCourses = [
+  //   'MTH101 - Calculus I',
+  //   'PHY101 - Mechanics',
+  //   'CSC101 - Intro to Programming',
+  // ];
+
+  final List<String> weekdays = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday'
   ];
 
-  final List<String> weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   startTime = const TimeOfDay(hour: 8, minute: 0);
+  //   endTime = const TimeOfDay(hour: 10, minute: 0);
+  //   selectedDay = widget.initialDay ?? weekdays.first;
+  // }
   @override
   void initState() {
     super.initState();
     startTime = const TimeOfDay(hour: 8, minute: 0);
     endTime = const TimeOfDay(hour: 10, minute: 0);
     selectedDay = widget.initialDay ?? weekdays.first;
+
+    fetchCoursesAndVenues();
   }
+
+  Future<void> fetchCoursesAndVenues() async {
+    final coursesSnapshot = await FirebaseFirestore.instance.collection('Courses').get();
+    final venuesSnapshot = await FirebaseFirestore.instance.collection('Venues').get();
+
+    final List<Map<String, dynamic>> courseList = coursesSnapshot.docs.map((doc) {
+      final data = doc.data();
+      final code = data['courseCode'];
+      final linked = List<String>.from(data['linkedCourses'] ?? []);
+      return {
+        'displayCode': ([code, ...linked]..removeWhere((e) => e == null || e.isEmpty)).join('/'),
+        'courseCode': code,
+      };
+    }).toList();
+
+    setState(() {
+      allCourses = courseList;
+      filteredCourseCodes = allCourses.map((c) => c['displayCode'] as String).toList();
+      venues = venuesSnapshot.docs.map((doc) => doc['name'] as String).toList();
+    });
+  }
+
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Add/Edit Schedule'),
+      title: const Text('Add new Schedule'),
       content: SingleChildScrollView(
         child: Column(
           children: [
             DropdownButtonFormField<String>(
               decoration: const InputDecoration(labelText: 'Select Day'),
               value: selectedDay,
-              items: weekdays.map((day) => DropdownMenuItem(value: day, child: Text(day))).toList(),
+              items: weekdays
+                  .map((day) => DropdownMenuItem(value: day, child: Text(day)))
+                  .toList(),
               onChanged: (value) => setState(() => selectedDay = value),
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              decoration: const InputDecoration(labelText: 'Select Course'),
-              items: dummyCourses.map((course) => DropdownMenuItem(value: course, child: Text(course))).toList(),
-              onChanged: (value) => setState(() => selectedCourse = value),
+
+            DropdownSearch<String>(
+              popupProps: PopupProps.menu(
+                showSearchBox: true,
+                searchFieldProps: TextFieldProps(
+                  decoration: const InputDecoration(
+                    hintText: 'Search Course',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                fit: FlexFit.loose,
+                itemBuilder: (context, item, isSelected) => ListTile(
+                  title: Text(item),
+                ),
+              ),
+              dropdownDecoratorProps: const DropDownDecoratorProps(
+                dropdownSearchDecoration: InputDecoration(
+                  labelText: 'Select Course',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              items: filteredCourseCodes,
+              selectedItem: selectedCourse,
+              onChanged: (value) {
+                setState(() {
+                  selectedCourse = value;
+                });
+              },
             ),
+
+
             const SizedBox(height: 12),
-            TextField(
-              controller: _venueController,
-              decoration: const InputDecoration(labelText: 'Venue'),
+
+            DropdownButtonFormField<String>(
+              decoration: const InputDecoration(labelText: 'Select Venue'),
+              value: _venueController.text.isNotEmpty ? _venueController.text : null,
+              items: venues
+                  .map((venue) => DropdownMenuItem(value: venue, child: Text(venue)))
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _venueController.text = value);
+                }
+              },
             ),
+
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   child: TextButton(
                     onPressed: () async {
-                      final picked = await showTimePicker(context: context, initialTime: startTime!);
+                      final picked = await showTimePicker(
+                          context: context, initialTime: startTime!);
                       if (picked != null) setState(() => startTime = picked);
                     },
                     child: Text('Start: ${startTime?.format(context) ?? '--'}'),
@@ -79,7 +163,8 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
                 Expanded(
                   child: TextButton(
                     onPressed: () async {
-                      final picked = await showTimePicker(context: context, initialTime: endTime!);
+                      final picked = await showTimePicker(
+                          context: context, initialTime: endTime!);
                       if (picked != null) setState(() => endTime = picked);
                     },
                     child: Text('End: ${endTime?.format(context) ?? '--'}'),
@@ -91,44 +176,49 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel')),
         ElevatedButton(
-    onPressed: () async {
-    if (selectedCourse != null && selectedDay != null && startTime != null && endTime != null) {
-    final result = _createScheduleData(context);
+          onPressed: () async {
+            if (selectedCourse != null &&
+                selectedDay != null &&
+                startTime != null &&
+                endTime != null) {
+              final result = _createScheduleData(context);
 
-    // show loading dialog and hold its context
-    showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (dialogContext) => const Center(child: CircularProgressIndicator()),
-    );
+              // show loading dialog and hold its context
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (dialogContext) =>
+                    const Center(child: CircularProgressIndicator()),
+              );
 
-    try {
-    await FirebaseFirestore.instance
-        .collection('Timetables')
-        .doc(widget.timetableId)
-        .collection('ScheduledCourses')
-        .add(result);
+              try {
+                await FirebaseFirestore.instance
+                    .collection('Timetables')
+                    .doc(widget.timetableId)
+                    .collection('ScheduledCourses')
+                    .add(result);
 
-    Navigator.pop(context); // Close loading dialog
-    Navigator.pop(context, result); // Close schedule dialog with result
-    } catch (e) {
-    Navigator.pop(context); // Close loading dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text('Error saving: $e')),
-    );
-    }
-    } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text('Please select all fields before saving.')),
-    );
-    }
-    },
-
-
-
-    child: const Text('Save'),
+                Navigator.pop(context); // Close loading dialog
+                Navigator.pop(
+                    context); // Close schedule dialog with result
+              } catch (e) {
+                Navigator.pop(context); // Close loading dialog
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error saving: $e')),
+                );
+              }
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('Please select all fields before saving.')),
+              );
+            }
+          },
+          child: const Text('Save'),
         ),
       ],
     );
@@ -145,7 +235,6 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
       'endTime': endTime!.format(context),
       // 'startSlot': calculatedSlot,
     };
-
   }
 
   String _findTimeSlotForStart(TimeOfDay start) {
@@ -166,9 +255,10 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
       }
     }
 
-    return widget.availableSlots.isNotEmpty ? widget.availableSlots.first : 'Unknown Slot';
+    return widget.availableSlots.isNotEmpty
+        ? widget.availableSlots.first
+        : 'Unknown Slot';
   }
-
 
   int _parseTime(String timeStr) {
     timeStr = timeStr.toUpperCase();
@@ -180,5 +270,3 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
     return hour * 60;
   }
 }
-
-
