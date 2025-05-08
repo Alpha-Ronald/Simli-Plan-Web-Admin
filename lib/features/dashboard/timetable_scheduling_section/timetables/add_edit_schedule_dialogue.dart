@@ -5,12 +5,25 @@ import 'package:flutter/material.dart';
 class AddEditScheduleDialog extends StatefulWidget {
   final List<String> availableSlots;
   final String timetableId;
-  final String? initialDay; // optional, in case you want to preselect
+  final bool isEdit;
+  final String? scheduleId;
+
+  final String? initialDay;
+  final String? initialCourse;
+  final String? initialVenue;
+  final TimeOfDay? initialStartTime;
+  final TimeOfDay? initialEndTime;
 
   const AddEditScheduleDialog({
     required this.availableSlots,
     required this.timetableId,
+    this.isEdit = false,
+    this.scheduleId,
     this.initialDay,
+    this.initialCourse,
+    this.initialVenue,
+    this.initialStartTime,
+    this.initialEndTime,
   });
 
   @override
@@ -56,9 +69,12 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
   @override
   void initState() {
     super.initState();
-    startTime = const TimeOfDay(hour: 8, minute: 0);
-    endTime = const TimeOfDay(hour: 10, minute: 0);
+
+    startTime = widget.initialStartTime ?? const TimeOfDay(hour: 8, minute: 0);
+    endTime = widget.initialEndTime ?? const TimeOfDay(hour: 10, minute: 0);
     selectedDay = widget.initialDay ?? weekdays.first;
+    selectedCourse = widget.initialCourse;
+    _venueController.text = widget.initialVenue ?? '';
 
     fetchCoursesAndVenues();
   }
@@ -84,11 +100,80 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
     });
   }
 
+  Future<String?> checkForConflicts() async {
+    final collectionRef = FirebaseFirestore.instance
+        .collection('Timetables')
+        .doc(widget.timetableId)
+        .collection('ScheduledCourses');
+
+    final snapshot = await collectionRef
+        .where('day', isEqualTo: selectedDay)
+        .get();
+
+    final newStart = _timeOfDayToMinutes(startTime!);
+    final newEnd = _timeOfDayToMinutes(endTime!);
+
+    for (final doc in snapshot.docs) {
+      if (widget.isEdit && doc.id == widget.scheduleId) continue;
+
+      final data = doc.data();
+      final existingStart = _parseTime(data['startTime']);
+      final existingEnd = _parseTime(data['endTime']);
+
+      final overlap = newStart < existingEnd && newEnd > existingStart;
+
+      if (overlap) {
+        if (data['venue'] == _venueController.text) {
+          return 'The selected venue is already booked at this time.';
+        }
+
+        final existingLecturer = data['lecturer'] ?? '';
+        final currentLecturer = await getLecturerForCourse(selectedCourse!);
+
+        if (existingLecturer != 'N/A' &&
+            currentLecturer != 'N/A' &&
+            existingLecturer == currentLecturer) {
+          return 'The assigned lecturer is already scheduled at this time.';
+        }
+      }
+    }
+
+    return null;
+  }
+
+  // int _parseTime(String timeStr) {
+  //   timeStr = timeStr.toUpperCase();
+  //   bool isPM = timeStr.contains('PM');
+  //   final parts = timeStr.replaceAll('AM', '').replaceAll('PM', '').split(':');
+  //   int hour = int.parse(parts[0].trim());
+  //   int minute = int.parse(parts[1].trim());
+  //   if (isPM && hour != 12) hour += 12;
+  //   if (!isPM && hour == 12) hour = 0;
+  //   return hour * 60 + minute;
+  // }
+
+  int _timeOfDayToMinutes(TimeOfDay time) => time.hour * 60 + time.minute;
+
+  Future<String> getLecturerForCourse(String courseCode) async {
+    final courseRef = await FirebaseFirestore.instance
+        .collection('Courses')
+        .where('courseCode', isEqualTo: courseCode)
+        .limit(1)
+        .get();
+
+    if (courseRef.docs.isEmpty) return 'N/A';
+
+    final data = courseRef.docs.first.data();
+    return data['lecturer'] ?? 'N/A';
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Add new Schedule'),
+      title: Text(widget.isEdit ? 'Edit Schedule' : 'Add New Schedule'),
+
       content: SingleChildScrollView(
         child: Column(
           children: [
@@ -102,7 +187,16 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
             ),
             const SizedBox(height: 12),
 
-            DropdownSearch<String>(
+            widget.isEdit
+                ? TextFormField(
+              decoration: const InputDecoration(
+                labelText: 'Course',
+                border: OutlineInputBorder(),
+              ),
+              enabled: false,
+              initialValue: selectedCourse,
+            )
+                : DropdownSearch<String>(
               popupProps: PopupProps.menu(
                 showSearchBox: true,
                 searchFieldProps: TextFieldProps(
@@ -176,6 +270,34 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
         ),
       ),
       actions: [
+        if (widget.isEdit)
+          TextButton(
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Delete Schedule'),
+                  content: const Text('Are you sure you want to delete this schedule?'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                    ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+                  ],
+                ),
+              );
+
+              if (confirm == true && widget.scheduleId != null) {
+                await FirebaseFirestore.instance
+                    .collection('Timetables')
+                    .doc(widget.timetableId)
+                    .collection('ScheduledCourses')
+                    .doc(widget.scheduleId)
+                    .delete();
+
+                Navigator.pop(context); // Close the edit dialog
+              }
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
         TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel')),
@@ -185,6 +307,14 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
                 selectedDay != null &&
                 startTime != null &&
                 endTime != null) {
+              final conflictMessage = await checkForConflicts();
+              if (conflictMessage != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(conflictMessage)),
+                );
+                return;
+              }
+
               final result = _createScheduleData(context);
 
               // show loading dialog and hold its context
@@ -196,16 +326,20 @@ class _AddEditScheduleDialogState extends State<AddEditScheduleDialog> {
               );
 
               try {
-                await FirebaseFirestore.instance
+                final collectionRef = FirebaseFirestore.instance
                     .collection('Timetables')
                     .doc(widget.timetableId)
-                    .collection('ScheduledCourses')
-                    .add(result);
+                    .collection('ScheduledCourses');
 
-                Navigator.pop(context); // Close loading dialog
-                Navigator.pop(
-                    context); // Close schedule dialog with result
-              } catch (e) {
+                if (widget.isEdit && widget.scheduleId != null) {
+                  await collectionRef.doc(widget.scheduleId).update(result);
+                } else {
+                  await collectionRef.add(result);
+                }
+
+                Navigator.pop(context); // loading
+                Navigator.pop(context); // dialog
+              }  catch (e) {
                 Navigator.pop(context); // Close loading dialog
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Error saving: $e')),

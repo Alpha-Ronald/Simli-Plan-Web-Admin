@@ -244,20 +244,43 @@ print(fetchedSchedules);
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     itemBuilder: (context, index) {
                       final schedule = slotSchedules[index];
-                      return Container(
-                        margin: const EdgeInsets.symmetric(vertical: 2),
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.blue[100],
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(schedule['course'], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                            Text(schedule['venue'], style: const TextStyle(fontSize: 10)),
-                            Text('${schedule['start']} - ${schedule['end']}', style: const TextStyle(fontSize: 10)),
-                          ],
+                      return InkWell(
+                        onTap: () async {
+                          final result = await showDialog(
+                            context: context,
+                            builder: (_) => AddEditScheduleDialog(
+                              isEdit: true,
+                              availableSlots: timeSlotRanges.map((slot) => slot['label'] as String).toList(),
+                              initialDay: schedule['day'], // Full day already
+                              timetableId: widget.timetableId,
+                              scheduleId: schedule['id'],
+                              initialCourse: schedule['course'],
+                              initialVenue: schedule['venue'],
+                              initialStartTime: parseTimeOfDay(schedule['start']),
+                              initialEndTime: parseTimeOfDay(schedule['end']),
+
+
+                            ),
+                          );
+                          if (result != null) {
+                            fetchScheduledCourses(); // Re-fetch to reflect updates
+                          }
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(vertical: 2),
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.blue[100],
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(schedule['course'], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              Text(schedule['venue'], style: const TextStyle(fontSize: 10)),
+                              Text('${schedule['start']} - ${schedule['end']}', style: const TextStyle(fontSize: 10)),
+                            ],
+                          ),
                         ),
                       );
                     },
