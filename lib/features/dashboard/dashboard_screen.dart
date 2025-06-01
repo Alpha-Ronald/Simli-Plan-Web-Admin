@@ -6,6 +6,7 @@ import '../faculties_and_departments/faculties_and_departments_screen.dart';
 import '../venue_section/venue_display_screen.dart';
 import 'overview_screen.dart';
 
+
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -46,12 +47,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           // Sidebar
           _buildSidebar(),
+      Expanded(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: _pages[_selectedIndex],
+        ),
           // Main Content
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: _pages[_selectedIndex],
-            ),
           ),
         ],
       ),
@@ -79,16 +80,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           children: [
             const SizedBox(height: 50),
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text(
-                'University Logo',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child:
+              Image.asset(
+                "assets/DU_logo.png",
+                width: 100,
+                height: 100,
+                fit: BoxFit.contain,
               ),
+
             ),
             Expanded(
               child: ListView.builder(
