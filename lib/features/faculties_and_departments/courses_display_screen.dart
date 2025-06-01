@@ -215,7 +215,7 @@ class _CoursesPageState extends State<CoursesPage> {
                       DataCell(Text(programDetails['units'].toString())),
                       DataCell(Text(programDetails['status'].toString())),
                       DataCell(Text('${course['level']}')),
-                      DataCell(Text(course['lecturersAssigned'] ?? 'N/A')),
+                      DataCell(Text(course['lecturerAssigned'] ?? 'N/A')),
                       DataCell(Text(course['semester'] ?? 'N/A')),
                       DataCell(Text(_formatSchedule(course['schedule']))),
                       DataCell(_buildOptionsMenu(course)),

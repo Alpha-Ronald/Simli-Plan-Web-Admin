@@ -68,6 +68,97 @@ class _AddLecturerPageState extends State<AddLecturerPage> {
     }
   }
 
+  // void saveLecturer() async {
+  //   if (_formKey.currentState!.validate()) {
+  //     _formKey.currentState!.save();
+  //
+  //     // Show confirmation dialog
+  //     bool confirm = await showDialog(
+  //       context: context,
+  //       builder: (context) => AlertDialog(
+  //         title: const Text('Confirm Details'),
+  //         content: SingleChildScrollView(
+  //           child: ListBody(
+  //             children: [
+  //               Text('ID: ${_idController.text}'),
+  //               Text('First Name: ${_firstNameController.text}'),
+  //               Text('Last Name: ${_lastNameController.text}'),
+  //               Text('Email: ${_emailController.text}'),
+  //               Text('Title: $selectedTitle'),
+  //               Text('Role: $selectedRole'),
+  //               Text('Faculty: $selectedFaculty'),
+  //               Text('Department: $selectedDepartment'),
+  //               Text('Courses Assigned: ${selectedCourses.keys.join(", ")}'),
+  //             ],
+  //           ),
+  //         ),
+  //         actions: [
+  //           TextButton(
+  //             onPressed: () => Navigator.pop(context, false),
+  //             child: const Text('Cancel'),
+  //           ),
+  //           ElevatedButton(
+  //             onPressed: () => Navigator.pop(context, true),
+  //             child: const Text('Confirm'),
+  //           ),
+  //         ],
+  //       ),
+  //     );
+  //
+  //     if (confirm == true) {
+  //       try {
+  //         await FirebaseFirestore.instance.collection('Lecturers').doc(_idController.text).set({
+  //           'id': _idController.text,
+  //           'firstName': _firstNameController.text,
+  //           'lastName': _lastNameController.text,
+  //           'email': _emailController.text,
+  //           'title': selectedTitle,
+  //           'role': selectedRole,
+  //           'faculty': selectedFaculty,
+  //           'department': selectedDepartment,
+  //           'coursesAssigned': selectedCourses.map((course, linked) => MapEntry(course, linked)),
+  //           'timestamp': FieldValue.serverTimestamp(),
+  //         });
+  //
+  //         final lecturerFullName = '${_firstNameController.text} ${_lastNameController.text}';
+  //         final lecturerId = _idController.text;
+  //
+  //         for (var entry in selectedCourses.entries) {
+  //           final courseId = entry.key;
+  //           final linkedCourses = entry.value;
+  //
+  //           // Update the main course: linked courses + lecturerAssigned
+  //           final courseRef = FirebaseFirestore.instance.collection('Courses').doc(courseId);
+  //           await courseRef.update({
+  //             'linkedCourses': FieldValue.arrayUnion(linkedCourses),
+  //             'lecturerAssigned': lecturerId, // or lecturerFullName
+  //           });
+  //
+  //           // Update linked courses: back-link + lecturerAssigned
+  //           for (var linkedCourseId in linkedCourses) {
+  //             final linkedCourseRef = FirebaseFirestore.instance.collection('Courses').doc(linkedCourseId);
+  //             await linkedCourseRef.update({
+  //               'linkedCourses': FieldValue.arrayUnion([courseId]),
+  //               'lecturerAssigned': lecturerId, // or lecturerFullName
+  //             });
+  //           }
+  //         }
+  //
+  //
+  //         if (mounted) {
+  //           ScaffoldMessenger.of(context).showSnackBar(
+  //             const SnackBar(content: Text('Lecturer saved successfully!')),
+  //           );
+  //           Navigator.pop(context);
+  //         }
+  //       } catch (e) {
+  //         ScaffoldMessenger.of(context).showSnackBar(
+  //           SnackBar(content: Text('Error saving lecturer: $e')),
+  //         );
+  //       }
+  //     }
+  //   }
+  // }
   void saveLecturer() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
@@ -106,9 +197,20 @@ class _AddLecturerPageState extends State<AddLecturerPage> {
       );
 
       if (confirm == true) {
+        // Show loading dialog
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => const Center(child: CircularProgressIndicator()),
+        );
+
         try {
-          await FirebaseFirestore.instance.collection('Lecturers').doc(_idController.text).set({
-            'id': _idController.text,
+          final lecturerId = _idController.text;
+          final lecturerFullName = '${_firstNameController.text} ${_lastNameController.text}';
+
+          // Save lecturer
+          await FirebaseFirestore.instance.collection('Lecturers').doc(lecturerId).set({
+            'id': lecturerId,
             'firstName': _firstNameController.text,
             'lastName': _lastNameController.text,
             'email': _emailController.text,
@@ -120,34 +222,50 @@ class _AddLecturerPageState extends State<AddLecturerPage> {
             'timestamp': FieldValue.serverTimestamp(),
           });
 
-          // After saving lecturer
-          for (var entry in selectedCourses.entries) {
-            final courseId = entry.key; // e.g., BIO101
-            final linkedCourses = entry.value; // List<String> of linked course IDs
+          // Delete previous lecturerAssigned if exists before assigning
+          final allCourseIds = <String>{
+            ...selectedCourses.keys,
+            for (var list in selectedCourses.values) ...list,
+          };
 
-
-            for (var linkedCourseId in linkedCourses) {
-              final linkedCourseRef = FirebaseFirestore.instance.collection('Courses').doc(linkedCourseId);
-
-              await linkedCourseRef.update({
-                'linkedCourses': FieldValue.arrayUnion([courseId]),
-              });
-            }
-
-            // Now update the current course's linkedCourses field
+          for (var courseId in allCourseIds) {
             final courseRef = FirebaseFirestore.instance.collection('Courses').doc(courseId);
             await courseRef.update({
-              'linkedCourses': FieldValue.arrayUnion(linkedCourses),
+              'lecturerAssigned': FieldValue.delete(),
             });
           }
 
+          // Assign new lecturer and update linkedCourses
+          for (var entry in selectedCourses.entries) {
+            final courseId = entry.key;
+            final linkedCourses = entry.value;
+
+            // Update main course
+            final courseRef = FirebaseFirestore.instance.collection('Courses').doc(courseId);
+            await courseRef.update({
+              'linkedCourses': FieldValue.arrayUnion(linkedCourses),
+              'lecturerAssigned': lecturerId,
+            });
+
+            // Update linked courses
+            for (var linkedCourseId in linkedCourses) {
+              final linkedCourseRef = FirebaseFirestore.instance.collection('Courses').doc(linkedCourseId);
+              await linkedCourseRef.update({
+                'linkedCourses': FieldValue.arrayUnion([courseId]),
+                'lecturerAssigned': lecturerId,
+              });
+            }
+          }
+
           if (mounted) {
+            Navigator.pop(context); // Close loading dialog
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Lecturer saved successfully!')),
             );
-            Navigator.pop(context);
+            Navigator.pop(context); // Go back to previous screen
           }
         } catch (e) {
+          Navigator.pop(context); // Close loading dialog
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error saving lecturer: $e')),
           );
@@ -185,7 +303,7 @@ class _AddLecturerPageState extends State<AddLecturerPage> {
                 _buildDropdown(
                     "Title",
                     [
-                     "" ,"Dr","Mrs", "Miss", "Mr"
+                     "" ,"Dr","Mrs", "Miss", "Mr","Barr."
                     ],
                     selectedTitle,
                         (value) => setState(() => selectedTitle

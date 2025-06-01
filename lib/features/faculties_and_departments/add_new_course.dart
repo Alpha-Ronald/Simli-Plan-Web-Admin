@@ -212,7 +212,7 @@ class _AddCoursePageState extends State<AddCoursePage> {
       "level": _selectedLevel,
       "semester": _selectedSemester,
       "programs": _selectedPrograms, // Now stores objects with programName, status, and units
-      "lecturersAssigned": "N/A",
+      "lecturerAssigned": "N/A",
       "schedule": {},
       "students": [],
       "difficultyRating": {},
